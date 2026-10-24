@@ -81,7 +81,7 @@ def call(base, path, body=None):
 
 
 def test_the_page_lists_connectors_and_their_steps(ui):
-    base, _, _ = ui
+    base, _, services = ui
     code, html = call(base, "/test_connection.html")
     assert code == 200 and "Test connections" in html
     code, data = call(base, "/api/connectors")
@@ -93,6 +93,26 @@ def test_the_page_lists_connectors_and_their_steps(ui):
     assert steps["incidents"]["read_only"] and not steps["note"]["read_only"]
     assert steps["incidents"]["platforms"] == ["p1", "p2"] and "pat" not in json.dumps(data)
     assert call(base, "/api/config")[1]["connectors"] == 3
+    # Details: non-secret values shown, secrets only as set / not set.
+    details = {d["key"]: d for d in by["lake"]["details"]}
+    assert details["host"]["value"] == services.url and details["warehouse_id"]["value"] == "wh1"
+    assert details["token"] == {"key": "token", "secret": True, "set": True, "value": None, "missing": None}
+
+
+def test_details_show_missing_env_vars_and_no_secrets(tmp_path, monkeypatch):
+    from traintraintrain import connector_test
+    monkeypatch.setenv("PG_URL", "postgresql://app:hunter2@db.internal:5432/payments?sslmode=require")
+    monkeypatch.delenv("JIRA_TOKEN_X", raising=False)
+    cfg = config.from_dict({
+        "connectors": {"pg": {"type": "postgres", "url": "${PG_URL}"},
+                       "jira": {"type": "jira", "url": "https://acme.atlassian.net", "token": "${JIRA_TOKEN_X}"}},
+        "train": {"name": "t", "deploy_command": "true", "state_dir": str(tmp_path / "s")},
+        "stops": [{"platforms": ["p1"]}]}, base_dir=tmp_path)
+    inv = {c["name"]: c for c in connector_test.inventory(cfg)}
+    assert inv["pg"]["details"][0]["value"] == "db.internal:5432" and "hunter2" not in json.dumps(inv)
+    jira = {d["key"]: d for d in inv["jira"]["details"]}
+    assert jira["url"]["value"] == "https://acme.atlassian.net"
+    assert jira["token"]["set"] is False and jira["token"]["missing"] == "JIRA_TOKEN_X"
 
 
 def test_test_connection(ui):

@@ -17,6 +17,7 @@ import os
 import re
 import traceback
 import urllib.error
+import urllib.parse
 from datetime import timedelta
 
 from . import checks, connectors, live, notify
@@ -59,7 +60,46 @@ def inventory(cfg) -> list[dict]:
                           "platforms": platforms,
                           "needs": sorted(_step_refs(s.settings)), "enabled": s.enabled})
         out.append({"name": name, "type": c.type_name, "settings": c.describe().split(" ", 1)[-1].strip(),
-                    "can_ping": type(c).ping is not connectors.Connector.ping, "steps": steps})
+                    "details": details(c), "can_ping": type(c).ping is not connectors.Connector.ping,
+                    "steps": steps})
+    return out
+
+
+def _shown_url(value: str) -> str | None:
+    """scheme://host[:port]/path of a URL, without credentials or query; None if it isn't one."""
+    p = urllib.parse.urlsplit(value)
+    if not p.scheme or not p.hostname:
+        return None
+    host = p.hostname + (f":{p.port}" if p.port else "")
+    return urllib.parse.urlunsplit((p.scheme, host, p.path.rstrip("/"), "", ""))
+
+
+def details(connector) -> list[dict]:
+    """What the page may show about a connector's settings: non-secret values (URLs without
+    credentials), whether each secret is set, and which env vars are missing. Never a secret."""
+    out = []
+    for key, raw in connector.settings.items():
+        if key == "type":
+            continue
+        secret = key in connector.secret_settings
+        item = {"key": key, "secret": secret, "set": True, "value": None, "missing": None}
+        try:
+            value = connectors.interpolate_env(raw)
+        except connectors.ConnectorError:
+            names = [m.group(1) for m in connectors._ENV_REF.finditer(str(raw))]
+            item.update(set=False, missing=next((n for n in names if n not in os.environ), names[0] if names else None))
+            out.append(item)
+            continue
+        if isinstance(value, str):
+            item["set"] = bool(value.strip())
+            url = _shown_url(value)
+            if url:  # never a URL's credentials or query (which may hold tokens); for a secret, just the host
+                item["value"] = url.split("/", 3)[2] if secret else url
+            elif not secret:
+                item["value"] = value
+        elif not secret and isinstance(value, (int, float, bool)):
+            item["value"] = value
+        out.append(item)
     return out
 
 

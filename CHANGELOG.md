@@ -7,6 +7,10 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **A redesigned test connections page:** a card per service (Slack, Jira Service
+  Management, Databricks, ...) with its status and when it was checked, a summary and
+  **Test all**, and what each connection points at (site, workspace, warehouse) with
+  secrets only shown as set or not set, and missing env vars named.
 - **Error logs on the test connections page:** a failed check shows the request, the
   HTTP status and the service's full reply (or the network error), with a Copy button.
   Failed steps keep the same details in their log. The page is no longer linked from the
