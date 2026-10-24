@@ -27,11 +27,11 @@ button, input, select { font: inherit; color: inherit; }
 .mono, pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 code { font-size: .88em; background: var(--surface-2); padding: 1px 5px; border-radius: 5px; }
 
-.topbar { display: flex; align-items: center; gap: 10px; padding: 0 24px; height: 56px; background: var(--surface);
+.topbar { display: flex; align-items: center; gap: 10px; padding: 0 20px; height: 53px; background: var(--surface);
   border-bottom: 1px solid var(--border); }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -.01em; }
-.brand .mark { width: 26px; height: 26px; border-radius: 7px; background: var(--accent); color: var(--accent-ink);
-  display: grid; place-items: center; font-size: 13px; font-weight: 800; }
+.brand .mark { width: 28px; height: 28px; border-radius: 7px; background: var(--ink); color: var(--surface);
+  display: grid; place-items: center; flex: none; }
 .brand .sep { color: var(--border-strong); font-weight: 400; }
 .brand .page { font-weight: 600; color: var(--ink-2); }
 .topbar .train { margin-left: auto; font-size: 13px; color: var(--ink-3); }
@@ -133,7 +133,7 @@ main { max-width: 980px; margin: 0 auto; padding: 32px 16px 72px; }
 </head>
 <body>
 <header class="topbar">
-  <span class="brand"><span class="mark">t</span>traintraintrain<span class="sep">/</span><span class="page">Connections</span></span>
+  <span class="brand"><span class="mark" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="13" rx="3"/><path d="M5 10h14M9 20l-2 2M15 20l2 2M9 16v.01M15 16v.01"/></svg></span>traintraintrain<span class="sep">/</span><span class="page">Connections</span></span>
   <span class="train" id="trainName"></span>
 </header>
 <main>

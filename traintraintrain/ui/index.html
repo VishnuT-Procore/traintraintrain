@@ -56,8 +56,13 @@ code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monosp
 .brand .name { font-weight: 700; letter-spacing: -.01em; }
 .brand .train { color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar .spacer { flex: 1; }
-.who { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-3); }
-.who input { width: 130px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); }
+.who { display: flex; align-items: center; font-size: 13px; color: var(--ink-3); }
+.who .me { display: inline-flex; align-items: center; gap: 7px; border: 0; background: none; cursor: pointer; padding: 4px 6px;
+  border-radius: 8px; color: var(--ink-2); font-weight: 600; font-size: 13px; }
+.who .me:hover { background: var(--surface-2); }
+.who .avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--surface-3); color: var(--ink-2);
+  display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+.who .me.unset { color: var(--accent); }
 
 .layout { display: grid; grid-template-columns: 272px minmax(0, 1fr); min-height: calc(100vh - 53px);
   background: linear-gradient(to right, var(--surface) 271px, var(--border) 271px 272px, transparent 272px); }
@@ -89,10 +94,17 @@ code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monosp
 .nav-item .sub { font-size: 12.5px; color: var(--ink-3); margin-top: 6px; }
 .nav-item .meter { margin-top: 7px; }
 .nav-empty { color: var(--ink-3); font-size: 13px; padding: 4px 10px 8px; }
+.nav-search { width: calc(100% - 4px); margin: 0 2px 8px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface-2); font-size: 13.5px; }
+.nav-more { display: block; width: 100%; border: 0; background: none; color: var(--accent); font-weight: 600; font-size: 13px;
+  text-align: left; padding: 6px 10px; cursor: pointer; border-radius: 8px; }
+.nav-more:hover { background: var(--surface-2); }
 
 /* ---- status chip + icons ------------------------------------------------- */
 .chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px 2px 7px; border-radius: 999px;
-  font-size: 12.5px; font-weight: 600; color: var(--ink); white-space: nowrap; background: var(--neutral-bg); }
+  font-size: 12.5px; font-weight: 650; color: var(--ink); white-space: nowrap; background: var(--neutral-bg);
+  border: 1px solid transparent; }
+.chip[class*="t-"] { border-color: color-mix(in srgb, var(--tone) 28%, transparent); }
 .chip svg { flex: 0 0 auto; }
 .t-good { --tone: var(--good); --tone-bg: var(--good-bg); }
 .t-warn { --tone: var(--warn); --tone-bg: var(--warn-bg); }
@@ -225,6 +237,8 @@ a.link:hover { text-decoration: underline; }
 pre.log { background: #0e1116; color: #d6dde6; padding: 14px 16px; border-radius: var(--radius); overflow: auto;
   max-height: 520px; margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12.5px; }
 .empty { padding: 28px 16px; text-align: center; color: var(--ink-3); }
+.mobile-only { display: none !important; }
+.more { padding: 10px 16px; border-top: 1px solid var(--border); text-align: center; }
 
 /* ---- dialogs + toasts ---------------------------------------------------- */
 dialog { border: 1px solid var(--border); border-radius: 14px; padding: 0; background: var(--surface); color: var(--ink);
@@ -281,8 +295,17 @@ details.grp .grp-foot { padding: 6px 12px 10px; font-size: 13px; }
 @media (max-width: 860px) {
   .layout { grid-template-columns: 1fr; }
   .sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); padding: 10px 12px; }
-  .sidebar .group { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
-  .sidebar .nav-item { min-width: 210px; margin: 0; border-color: var(--border); }
+  .sidebar .nav-item { padding: 8px 10px; }
+  .sidebar .nav-item .meter { display: none; }
+  .sidebar .nav-item .sub { margin-top: 2px; }
+  .sidebar .group .nav-item { border-color: transparent; }
+  td.opt, th.opt { display: none !important; }
+  .mobile-only { display: block !important; }
+  table.grid tr { padding: 6px 0; }
+  table.grid td { padding: 2px 16px; grid-template-columns: 84px minmax(0, 1fr); }
+  table.grid td.name { font-size: 15px; padding-top: 6px; }
+  table.grid td.name::before { content: none; }
+  table.grid td.name { display: block; }
   .nav-label { margin: 10px 4px 6px; }
   .main { padding: 16px 16px 40px; }
   .page-head h1 { font-size: 22px; }
@@ -290,7 +313,7 @@ details.grp .grp-foot { padding: 6px 12px 10px; font-size: 13px; }
   .tile .value { font-size: 19px; }
   .layout { background: none; }
   .sidebar { background: var(--surface); }
-  .who { display: none; }
+  .who .me .label-text { display: none; }
   .brand .train { display: none; }
   .callout { flex-wrap: wrap; }
   .callout .btn { width: 100%; justify-content: center; }
@@ -305,9 +328,13 @@ details.grp .grp-foot { padding: 6px 12px 10px; font-size: 13px; }
   table.grid td.name { white-space: normal; }
   table.grid tr.detail td { display: block; }
   table.grid tr.detail td::before { content: none; }
-  .ev { grid-template-columns: 100px minmax(0, 1fr); gap: 2px 10px; }
-  .ev .kind { grid-column: 2; }
-  .ev .what { grid-column: 1 / -1; }
+  .ev { grid-template-columns: 88px minmax(0, 1fr) auto; gap: 0 8px; padding: 7px 14px; }
+  .ev .time { font-size: 12.5px; }
+  .ev .kind { justify-self: end; }
+  .ev .what { grid-column: 1 / -1; margin-top: 1px; }
+  .pstep { grid-template-columns: 18px minmax(0, 1fr); }
+  .pstep .sdetail { grid-column: 2; }
+  .mchip { white-space: normal; overflow-wrap: anywhere; }
   .station { min-width: 96px; }
 }
 </style>
@@ -379,6 +406,19 @@ details.grp .grp-foot { padding: 6px 12px 10px; font-size: 13px; }
   </form>
 </dialog>
 
+<dialog id="nameDialog">
+  <form method="dialog">
+    <h3>Who's this?</h3>
+    <p>Your name goes in the audit log next to what you do here (departures, signals, brakes). It's kept in this browser.</p>
+    <label class="field" for="nameInput">Your name</label>
+    <input type="text" id="nameInput" autocomplete="name" maxlength="80" placeholder="e.g. Vishnu">
+    <div class="buttons">
+      <button class="btn" value="skip" formnovalidate>Skip</button>
+      <button class="btn primary" value="ok">Save</button>
+    </div>
+  </form>
+</dialog>
+
 <div id="toasts" role="status" aria-live="polite"></div>
 
 <script>
@@ -424,7 +464,7 @@ const STATUS = {
   failed:          { label: "Failed",          tone: "bad",     icon: "x" },
   rolled_back:     { label: "Rolled back",     tone: "serious", icon: "undo" },
   rollback_failed: { label: "Rollback failed", tone: "bad",     icon: "alert" },
-  aborted:         { label: "Aborted",         tone: "neutral", icon: "stop" },
+  aborted:         { label: "Aborted",         tone: "serious", icon: "stop" },
   timed_out:       { label: "Timed out",       tone: "warn",    icon: "clock" },
   en_route:        { label: "En route",        tone: "active",  icon: "play" },
   at_signal:       { label: "At signal",       tone: "warn",    icon: "signal" },
@@ -445,7 +485,7 @@ const METER = [
   ["succeeded", "good", "succeeded"], ["rolled_back", "serious", "rolled back"],
   ["failed", "bad", "failed"], ["rollback_failed", "bad", "rollback failed"],
   ["deploying", "active", "deploying"], ["dwelling", "active", "dwelling"],
-  ["held", "warn", "held"], ["aborted", "neutral", "aborted"],
+  ["held", "warn", "held"], ["aborted", "serious", "aborted"],
 ];
 function meter(counts, total, big = false) {
   const segs = METER.filter(([k]) => counts[k]).map(([k, tone]) =>
@@ -486,6 +526,14 @@ const dayKey = (iso) => fmt(iso, { year: "numeric", month: "2-digit", day: "2-di
 function dayLabel(iso) {
   const k = dayKey(iso), today = dayKey(new Date().toISOString()), yest = dayKey(new Date(Date.now() - 864e5).toISOString());
   return k === today ? "Today" : k === yest ? "Yesterday" : fmt(iso, { weekday: "long", month: "short", day: "numeric" });
+}
+// "Sat 06:44 PM", or just "06:44 PM" today: short enough not to wrap in a tile.
+const whenShort = (iso) => dayKey(iso) === dayKey(new Date().toISOString())
+  ? fmt(iso, { hour: "2-digit", minute: "2-digit" }) : fmt(iso, { weekday: "short", hour: "2-digit", minute: "2-digit" });
+// "1d13h45m5s" (the server's durations) -> "1d 13h": the two largest units.
+function human(d) {
+  const parts = String(d || "").match(/\d+[dhms]/g);
+  return parts ? parts.slice(0, 2).join(" ") : d;
 }
 const cap = (t) => t ? t[0].toUpperCase() + t.slice(1) : t;
 const city = (tz) => (tz || "").split("/").pop().replace(/_/g, " ");
@@ -542,6 +590,11 @@ function confirmAction(title, bodyHtml, okLabel, okClass = "primary") {
 // ---- derived facts -------------------------------------------------------------
 const depStatus = (d) => d.starting ? "starting" : d.interrupted ? "interrupted"
   : d.status === "succeeded" ? "arrived" : d.status;
+// A train that isn't running (braked, failed, timed out, its process gone): its next step is
+// to resume it, whatever stop it was waiting at.
+const STOPPED = new Set(["aborted", "failed", "timed_out", "interrupted"]);
+const isStopped = (d) => !d.active && !d.starting && STOPPED.has(depStatus(d));
+const waitingAtSignal = (d) => !!d.signal_at && !isStopped(d);
 const cfgPlatform = (name) => {
   for (const s of S.config.stops) for (const p of s.platforms) if (p.name === name) return p;
   return null;
@@ -552,7 +605,7 @@ function stopState(stop, dep) {
   if (ps.every((s) => s === "succeeded")) return "succeeded";
   if (ps.some((s) => s === "failed" || s === "rollback_failed")) return "failed";
   if (ps.some((s) => s === "rolled_back")) return "rolled_back";
-  if (sig && sig.status === "waiting") return "at_signal";
+  if (sig && sig.status === "waiting" && !isStopped(dep)) return "at_signal";
   if (ps.some((s) => ACTIVE_PLATFORM.has(s))) return "en_route";
   if (ps.some((s) => s === "held")) return "held";
   if (ps.some((s) => s === "aborted")) return "aborted";
@@ -566,13 +619,13 @@ function nextUp(dep) {
   const status = depStatus(dep);
   const names = (pred) => Object.entries(dep.platforms || {}).filter(([, p]) => pred(p.status)).map(([n]) => n);
   if (status === "starting") return ["Departing…", "Starting the train process"];
-  if (dep.signal_at && !dep.signal_clear_submitted) return [`Clear the signal`, `at stop “${dep.signal_at}”`];
-  if (dep.signal_clear_submitted) return ["Signal cleared", "Train is about to proceed"];
   if (status === "arrived") return ["Nothing — done", "Live on all platforms"];
   if (status === "failed") return ["Fix and retry", "Failed platforms can be retried"];
-  if (status === "aborted") return ["Resume when ready", "Train was braked"];
+  if (status === "aborted") return ["Resume when ready", dep.signal_at ? `Then clear the signal at “${dep.signal_at}”` : "The train was stopped"];
   if (status === "timed_out") return ["Resume when ready", "A step before departing timed out; nothing was deployed"];
   if (status === "interrupted") return ["Resume the journey", "Its process stopped"];
+  if (dep.signal_at && !dep.signal_clear_submitted) return [`Clear the signal`, `at stop “${dep.signal_at}”`];
+  if (dep.signal_clear_submitted) return ["Signal cleared", "Train is about to proceed"];
   const dep_ = names((s) => s === "deploying"), dw = names((s) => s === "dwelling");
   if (dep_.length) return [`Deploying ${dep_.length > 1 ? dep_.length + " platforms" : dep_[0]}`, "Running the deploy command"];
   if (dw.length) return [`Checking ${dw.length > 1 ? dw.length + " platforms" : dw[0]}`, "Inspections running while dwelling"];
@@ -607,23 +660,45 @@ function noteFor(name, p, dep) {
 
 // ---- rendering: sidebar ---------------------------------------------------------
 function renderSidebar() {
+  // Re-rendered every few seconds: keep the search box's focus and caret.
+  const typing = document.activeElement && document.activeElement.id === "depSearch";
+  const caret = typing ? document.activeElement.selectionStart : 0;
+  renderSidebarList();
+  if (typing && $("depSearch")) { $("depSearch").focus(); $("depSearch").setSelectionRange(caret, caret); }
+}
+function renderSidebarList() {
   $("overviewNav").setAttribute("aria-current", S.selected ? "false" : "page");
   const list = $("depList");
   if (!S.deps.length) {
     list.innerHTML = `<div class="nav-label">Departures</div><div class="nav-empty">No departures yet. Start one with “New departure”.</div>`;
     return;
   }
-  const active = S.deps.filter((d) => d.active || d.interrupted || d.starting);
-  const recent = S.deps.filter((d) => !active.includes(d));
+  const q = (S.depQuery || "").trim().toLowerCase();
+  const active = S.deps.filter((d) => (d.active || d.interrupted || d.starting) && (!q || d.version.toLowerCase().includes(q)));
+  const others = S.deps.filter((d) => !(d.active || d.interrupted || d.starting) && (!q || d.version.toLowerCase().includes(q)));
+  const limit = window.matchMedia("(max-width: 860px)").matches ? 3 : 8;
+  // Always keep the open departure in the list, even when it's older than the cut-off.
+  const recent = S.showAllDeps || q ? others : others.filter((d, i) => i < limit || d.version === S.selected);
   const item = (d) => `<button type="button" class="nav-item" data-version="${esc(d.version)}"
       aria-current="${S.selected === d.version ? "page" : "false"}">
       <div class="top"><span class="ver">${esc(d.version)}</span>${chip(depStatus(d))}</div>
       <div class="meter-wrap">${meter(d.counts, d.total)}</div>
       <div class="sub num">${d.counts.succeeded || 0} of ${d.total} platforms · ${esc(rel(d.started_at))}</div></button>`;
+  const search = S.deps.length > 5
+    ? `<input type="search" class="nav-search" id="depSearch" placeholder="Find a version…" value="${esc(S.depQuery || "")}" aria-label="Find a departure">` : "";
+  const hidden = others.length - recent.length;
+  const toggle = hidden > 0 ? `<button type="button" class="nav-more" id="depMore">Show all ${others.length} departures</button>`
+    : S.showAllDeps && !q && others.length > limit ? `<button type="button" class="nav-more" id="depMore">Show fewer</button>` : "";
   list.innerHTML =
     (active.length ? `<div class="nav-label">In progress</div><div class="group">${active.map(item).join("")}</div>` : "") +
-    (recent.length ? `<div class="nav-label">Recent</div><div class="group">${recent.map(item).join("")}</div>` : "");
+    `<div class="nav-label">${q ? "Matching" : "Recent"}</div>${search}` +
+    (recent.length ? `<div class="group">${recent.map(item).join("")}</div>`
+      : `<div class="nav-empty">${q ? (active.length ? "No finished departure matches." : "No departure matches.") : "Nothing finished yet."}</div>`) + toggle;
   list.querySelectorAll(".nav-item").forEach((b) => b.onclick = () => select(b.dataset.version));
+  const sb = $("depSearch");
+  if (sb) sb.oninput = () => { S.depQuery = sb.value; renderSidebar(); };
+  const more = $("depMore");
+  if (more) more.onclick = () => { S.showAllDeps = !S.showAllDeps; renderSidebar(); };
 }
 
 // ---- rendering: departure -------------------------------------------------------
@@ -650,8 +725,8 @@ function renderStops(dep) {
     const facts = [
       s.parallel_platforms > 1 ? `<span class="fact">${s.parallel_platforms} at a time</span>` : "",
       s.headway ? `<span class="fact">${icon("clock", 12)}headway ${esc(s.headway)}</span>` : "",
-      s.signal ? `<span class="fact ${sig && sig.status === "cleared" ? "t-good" : sig ? "t-warn" : "t-neutral"}">${icon("signal", 12)}${
-        sig && sig.status === "cleared" ? `signal cleared by ${esc(sig.cleared_by)}` : sig ? "signal at danger" : "signal"}</span>` : "",
+      s.signal ? `<span class="fact ${sig && sig.status === "cleared" ? "t-good" : sig && !isStopped(dep) ? "t-warn" : "t-neutral"}">${icon("signal", 12)}${
+        sig && sig.status === "cleared" ? `signal cleared by ${esc(sig.cleared_by)}` : sig && !isStopped(dep) ? "signal at danger" : "signal"}</span>` : "",
     ].join("");
     const rows = s.platforms.map((cp) => {
       const p = dep.platforms[cp.name] || { status: "scheduled" };
@@ -660,9 +735,9 @@ function renderStops(dep) {
       const main = `<tr>
         <td class="name" data-label="Platform"><div>${esc(cp.name)}${p.from_version ? `<span class="two">${p.from_version === dep.version ? "already on it" : "from " + esc(p.from_version)}${p.from_sha && p.from_sha !== p.from_version.toLowerCase() ? " · " + esc(p.from_sha.slice(0, 9)) : ""}</span>` : ""}</div></td>
         <td data-label="Status"><div>${chip(p.status)}</div></td>
-        <td data-label="Timetable"><div>${["succeeded", "rolled_back"].includes(p.status) ? `<span class="muted">${esc(cp.timetable)}</span>` : serviceCell(cp)}</div></td>
-        <td data-label="Started" class="num nowrap"><div>${p.started_at ? esc(clock(p.started_at)) : "<span class='muted'>—</span>"}</div></td>
-        <td data-label="Took" class="num"><div>${took ? esc(took) : "<span class='muted'>—</span>"}</div></td>
+        <td data-label="Timetable" class="${["succeeded", "rolled_back"].includes(p.status) ? "opt" : ""}"><div>${["succeeded", "rolled_back"].includes(p.status) ? `<span class="muted">${esc(cp.timetable)}</span>` : serviceCell(cp)}</div></td>
+        <td data-label="Started" class="num nowrap opt"><div>${p.started_at ? esc(clock(p.started_at)) : "<span class='muted'>—</span>"}</div></td>
+        <td data-label="Took" class="num${took ? "" : " opt"}"><div>${took ? esc(took) : "<span class='muted'>—</span>"}</div></td>
         <td data-label="Notes"><div>${noteFor(cp.name, p, dep)}</div></td></tr>`;
       const detail = p.output ? `<tr class="detail"><td colspan="6"><pre class="out mono">${esc(p.output)}</pre></td></tr>` : "";
       return main + stepsRow(p) + detail;
@@ -763,6 +838,9 @@ function renderEvents(dep) {
   if (!S.showChecks) evs = evs.filter((e) => !e.c.check);
   if (S.evFilter === "problems") evs = evs.filter((e) => e.c.bad || e.c.kind === "Rollback");
   if (!evs.length) return `<div class="card"><div class="empty">${S.evFilter === "problems" ? "No problems recorded." : "No events yet."}</div></div>`;
+  const limit = window.matchMedia("(max-width: 860px)").matches ? 10 : 40;
+  const total = evs.length;
+  if (!S.eventsAll) evs = evs.slice(0, limit);
   let out = "", lastDay = "";
   for (const e of evs) {
     const d = dayLabel(e.at);
@@ -773,7 +851,9 @@ function renderEvents(dep) {
       <span class="kind t-${e.c.tone}">${icon(e.c.ico, 12)}${esc(e.c.kind)}${e.c.dry ? " (dry run)" : ""}</span>
       <span class="what">${e.c.text}</span></div>`;
   }
-  return `<div class="card">${out}</div>`;
+  const more = total > limit ? `<div class="more"><button type="button" class="btn small" id="eventsMore">${
+    S.eventsAll ? "Show fewer" : `Show all ${total} events`}</button></div>` : "";
+  return `<div class="card">${out}${more}</div>`;
 }
 
 // "v1.3.0 3f2a1b9c0": a version and the commit it was at (when SHAs are tracked).
@@ -866,12 +946,13 @@ function renderDeparture() {
   const actions = [
     enRoute ? `<button type="button" class="btn danger" data-act="brake" ${dep.brake_applied ? "disabled" : ""}>${icon("stop", 14)}${dep.brake_applied ? "Braking…" : "Emergency brake"}</button>` : "",
     canResume && hasFailed ? `<button type="button" class="btn primary" data-act="retry">${icon("undo", 14)}Retry failed platforms</button>` : "",
-    canResume && !hasFailed ? `<button type="button" class="btn primary" data-act="resume">${icon("play", 14)}Resume journey</button>` : "",
+    canResume && !hasFailed && !["aborted", "timed_out"].includes(dep.status)
+      ? `<button type="button" class="btn primary" data-act="resume">${icon("play", 14)}Resume journey</button>` : "",
   ].join("");
 
   // One callout, the most important thing needing a person.
   let callout = "";
-  if (dep.signal_at && !dep.signal_clear_submitted) {
+  if (waitingAtSignal(dep) && !dep.signal_clear_submitted) {
     const plats = (S.config.stops.find((s) => s.name === dep.signal_at)?.platforms || []).map((p) => p.name).join(", ");
     callout = `<div class="callout t-warn" role="alert">${icon("signal", 22)}<div class="body">
       <div class="title">Signal at “${esc(dep.signal_at)}” needs clearing</div>
@@ -886,6 +967,18 @@ function renderDeparture() {
     callout = `<div class="callout t-bad" role="alert">${icon("x", 22)}<div class="body">
       <div class="title">Train halted: ${esc(bad)} failed</div>
       <div class="text">See the failure output below and the log. Fix the cause, then retry the failed platforms.</div></div></div>`;
+  } else if (dep.status === "aborted") {
+    callout = `<div class="callout t-serious" role="alert">${icon("stop", 22)}<div class="body">
+      <div class="title">The train was stopped${dep.signal_at ? ` at the signal before “${esc(dep.signal_at)}”` : ""}</div>
+      <div class="text">Someone pulled the emergency brake, or its process was stopped. Resume the journey to continue;
+        platforms that already succeeded are skipped${dep.signal_at ? ", and the signal still needs clearing after that" : ""}.</div></div>
+      <button type="button" class="btn primary" data-act="resume">${icon("play", 14)}Resume journey</button></div>`;
+  } else if (dep.status === "timed_out") {
+    callout = `<div class="callout t-warn" role="alert">${icon("clock", 22)}<div class="body">
+      <div class="title">Timed out before the first stop</div>
+      <div class="text">A step before departing (such as a change approval) didn't pass in time, so nothing was deployed.
+        Resume to wait for it again.</div></div>
+      <button type="button" class="btn primary" data-act="resume">${icon("play", 14)}Resume journey</button></div>`;
   } else if (dep.starting) {
     callout = `<div class="callout t-active">${icon("spin", 22, "spin")}<div class="body"><div class="title">Departing…</div>
       <div class="text">Starting the train process.</div></div></div>`;
@@ -908,7 +1001,7 @@ function renderDeparture() {
         <div class="value">${esc(nextTitle)}</div><div class="sub">${esc(nextSub)}</div></div>
       <div class="tile"><div class="label">Journey</div>
         <div class="value num">${esc(dur(dep.started_at, dep.finished_at))}</div>
-        <div class="sub">Departed ${esc(whenFull(dep.started_at))}${dep.finished_at ? `<br>Ended ${esc(whenFull(dep.finished_at))}` : ""}</div></div>
+        <div class="sub" title="${esc(whenFull(dep.started_at))}">Departed ${esc(whenShort(dep.started_at))}${dep.finished_at ? ` · ended ${esc(whenShort(dep.finished_at))}` : dep.active ? " · running" : ""}</div></div>
     </div>` : "";
 
   const t = S.tab;
@@ -943,6 +1036,8 @@ function renderDeparture() {
   main.querySelectorAll("[data-act]").forEach((b) => b.onclick = () => doAction(b.dataset.act));
   main.querySelectorAll("[data-jump]").forEach((b) => b.onclick = () =>
     document.getElementById("stop-" + b.dataset.jump)?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  const em = $("eventsMore");
+  if (em) em.onclick = () => { S.eventsAll = !S.eventsAll; renderDeparture(); };
   const sc = $("showChecks");
   if (sc) sc.onchange = () => { S.showChecks = sc.checked; renderDeparture(); };
   const pre = $("logPre");
@@ -962,23 +1057,32 @@ async function renderOverview() {
   const open = all.filter((p) => p.in_service).length;
   const nextChange = all.filter((p) => !p.in_service && p.next_start).sort((a, b) => a.next_start.localeCompare(b.next_start))[0];
   const lastEnd = proj ? proj.stops.flatMap((s) => s.platforms).map((p) => p.end).sort().pop() : null;
-  const tables = cfg.stops.map((s, i) => `
+  // A stop whose platforms share a timetable and dwell says so once, in its header.
+  const tables = cfg.stops.map((s, i) => {
+    const same = new Set(s.platforms.map((p) => `${p.timetable}|${p.timezone}|${p.dwell}`)).size === 1;
+    const p0 = s.platforms[0];
+    const cols = same ? `<col style="width:28%"><col style="width:30%"><col style="width:42%">`
+      : `<col style="width:22%"><col style="width:20%"><col style="width:28%"><col style="width:20%"><col style="width:10%">`;
+    return `
     <section class="stop" id="stop-${esc(s.name)}"><div class="stop-head"><span class="idx">${i + 1}</span><h3>${esc(s.name)}</h3>
-      <div class="facts">${s.parallel_platforms > 1 ? `<span class="fact">${s.parallel_platforms} at a time</span>` : ""}
+      <div class="facts">${same ? `<span class="fact">${icon("clock", 12)}${esc(p0.timetable)} · ${esc(city(p0.timezone) || p0.timezone)}</span>
+        <span class="fact">dwell ${esc(p0.dwell)}</span>` : ""}
+        ${s.parallel_platforms > 1 ? `<span class="fact">${s.parallel_platforms} at a time</span>` : ""}
         ${s.headway ? `<span class="fact">${icon("clock", 12)}headway ${esc(s.headway)}</span>` : ""}
         ${s.signal ? `<span class="fact t-neutral">${icon("signal", 12)}signal</span>` : ""}</div></div>
-    <table class="grid fixed"><colgroup><col style="width:22%"><col style="width:20%"><col style="width:28%"><col style="width:20%"><col style="width:10%"></colgroup>
-    <thead><tr><th>Platform</th><th>Live now</th><th>Service now</th><th>Timetable</th><th>Dwell</th></tr></thead><tbody>` +
+    <table class="grid fixed"><colgroup>${cols}</colgroup>
+    <thead><tr><th>Platform</th><th>Live now</th><th>Service now</th>${same ? "" : "<th>Timetable</th><th>Dwell</th>"}</tr></thead><tbody>` +
     s.platforms.map((p) => `<tr><td class="name" data-label="Platform"><div>${esc(p.name)}</div></td>
       <td data-label="Live now" class="ver-cell"><div>${liveCell(liveOf[p.name])}</div></td>
       <td data-label="Service now"><div>${serviceCell(p, false)}</div></td>
-      <td data-label="Timetable"><div>${esc(p.timetable)}<span class="two">${esc(p.timezone)}</span></div></td>
-      <td data-label="Dwell" class="num"><div>${esc(p.dwell)}</div></td></tr>`).join("") + `</tbody></table></section>`).join("");
+      ${same ? "" : `<td data-label="Timetable" class="opt"><div>${esc(p.timetable)}<span class="two">${esc(p.timezone)}</span></div></td>
+      <td data-label="Dwell" class="num opt"><div>${esc(p.dwell)}</div></td>`}</tr>`).join("") + `</tbody></table></section>`;
+  }).join("");
   const projRows = proj ? proj.stops.flatMap((s) => s.platforms.map((p) => `<tr>
-      <td data-label="Stop"><div>${esc(s.name)}</div></td><td class="name" data-label="Platform"><div>${esc(p.name)}</div></td>
+      <td data-label="Stop" class="opt"><div>${esc(s.name)}</div></td><td class="name" data-label="Platform"><div>${esc(p.name)}<span class="two mobile-only">${esc(s.name)}</span></div></td>
       <td data-label="Departs" class="num"><div>${esc(whenFull(p.start))}<span class="two">${esc(rel(p.start))}</span></div></td>
-      <td data-label="Done by" class="num"><div>${esc(whenFull(p.end))}</div></td>
-      <td data-label="Held" class="num"><div>${p.held ? esc(p.held) : "<span class='muted'>—</span>"}</div></td></tr>`)).join("")
+      <td data-label="Done by" class="num opt"><div>${esc(whenFull(p.end))}</div></td>
+      <td data-label="Held" class="num opt"><div>${p.held ? esc(human(p.held)) : "<span class='muted'>—</span>"}</div></td></tr>`)).join("")
     : `<tr><td colspan="5">${esc(projErr)}</td></tr>`;
   main.innerHTML = `
     <div class="page-head"><h1>Timetable</h1>
@@ -1008,6 +1112,8 @@ async function renderOverview() {
   main.querySelectorAll("[data-jump]").forEach((b) => b.onclick = () =>
     document.getElementById("stop-" + b.dataset.jump)?.scrollIntoView({ behavior: "smooth", block: "start" }));
   if (cfg.changes_head) loadPending();
+  const hm = $("historyMore");
+  if (hm) hm.onclick = () => { S.historyAll = !S.historyAll; renderOverview(); };
 }
 
 // ---- not in production yet: what's on the head branch but not live --------------
@@ -1046,21 +1152,32 @@ function liveCell(x) {
   const sub = x.at ? `${x.status === "deployed" || !x.status ? "" : esc(LIVE_WHAT[x.status] || x.status) + " · "}${esc(rel(x.at))}` : "";
   return `${verSha(x.version, x.sha)}${sub ? `<span class="two">${sub}</span>` : ""}`;
 }
+const HISTORY_ROWS = window.matchMedia("(max-width: 860px)").matches ? 5 : 10;
+// Who changed it: the person, and the departure only when it isn't the version itself.
+function whoCell(r) {
+  const via = r.departure && r.departure !== r.version ? `departure ${r.departure}` : "";
+  if (r.by) return `${esc(r.by)}${via ? `<span class="two">${esc(via)}</span>` : ""}`;
+  return r.departure ? `<span class="muted">${esc(via || "the train")}</span>` : `<span class="muted">—</span>`;
+}
 function renderLiveHistory(rows) {
   if (!rows || !rows.length) return `<div class="card"><div class="empty">Nothing recorded yet. Each deploy, rollback and failure is recorded here.</div></div>`;
-  return `<div class="card"><table class="grid"><thead><tr><th>When</th><th>Platform</th><th>What</th><th>Version</th><th>Before</th><th>Departure / who</th></tr></thead><tbody>` +
-    rows.slice(0, 15).map((r) => `<tr>
+  const shown = S.historyAll ? rows : rows.slice(0, HISTORY_ROWS);
+  const more = rows.length > HISTORY_ROWS
+    ? `<div class="more"><button type="button" class="btn small" id="historyMore">${S.historyAll ? "Show fewer" : `Show all ${rows.length}`}</button></div>` : "";
+  return `<div class="card"><table class="grid history"><thead><tr><th>When</th><th>Platform</th><th>What</th><th>Before</th><th>Who</th></tr></thead><tbody>` +
+    shown.map((r) => `<tr>
       <td data-label="When" class="num"><div>${esc(whenFull(r.at))}</div></td>
       <td data-label="Platform" class="name"><div>${esc(r.platform)}</div></td>
-      <td data-label="What"><div><span class="t-${LIVE_TONE[r.status] || "neutral"}" style="color:var(--tone);font-weight:600">${esc(LIVE_WHAT[r.status] || r.status)}</span></div></td>
-      <td data-label="Version" class="ver-cell"><div>${verSha(r.version, r.sha)}</div></td>
-      <td data-label="Before" class="ver-cell"><div>${verSha(r.previous_version, r.previous_sha)}</div></td>
-      <td data-label="Departure / who"><div>${esc([r.departure, r.by].filter(Boolean).join(" · ") || "—")}</div></td></tr>`).join("") +
-    `</tbody></table></div>`;
+      <td data-label="What"><div><span class="t-${LIVE_TONE[r.status] || "neutral"}" style="color:var(--tone);font-weight:600">${esc(LIVE_WHAT[r.status] || r.status)}</span>
+        <span class="ver-cell">${verSha(r.version, r.sha)}</span></div></td>
+      <td data-label="Before" class="ver-cell opt"><div>${verSha(r.previous_version, r.previous_sha)}</div></td>
+      <td data-label="Who" class="opt"><div>${whoCell(r)}</div></td></tr>`).join("") +
+    `</tbody></table>${more}</div>`;
 }
 
 // ---- actions --------------------------------------------------------------------
 async function doAction(act) {
+  await askName();
   const dep = S.dep, v = esc(dep.version);
   let ok, call;
   if (act === "brake") {
@@ -1182,6 +1299,7 @@ function select(version) {
   S.selected = version || null;
   S.dep = null;
   S.tab = "events";
+  S.eventsAll = false;
   history.replaceState(null, "", version ? "#departure=" + encodeURIComponent(version) : "#");
   renderSidebar();
   if (version) { renderDeparture(); refreshDeparture(); } else renderOverview();
@@ -1217,16 +1335,42 @@ async function refreshAll() {
     if (!/Authentication/.test(e.message)) toast("Can't reach the traintraintrain server: " + e.message, true);
   } finally { S.busy = false; }
 }
+// Who you are: from the proxy (shown as is) or a name kept in this browser, asked the first
+// time you do something that's audited.
+const initials = (n) => n.split(/[\s._@-]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("") || "?";
+const viaProxy = () => S.whoami && S.whoami.user !== "anonymous" && S.whoami.user !== (store.get("dt-user") || "");
+function renderUser() {
+  const el = $("userChip");
+  if (viaProxy()) { el.innerHTML = `<span class="me" title="Signed in"><span class="avatar">${esc(initials(S.whoami.user))}</span><span class="label-text">${esc(S.whoami.user)}</span></span>`; return; }
+  const name = store.get("dt-user") || "";
+  el.innerHTML = name
+    ? `<button type="button" class="me" id="meBtn" title="Change your name"><span class="avatar">${esc(initials(name))}</span><span class="label-text">${esc(name)}</span></button>`
+    : `<button type="button" class="me unset" id="meBtn" title="Set your name"><span class="avatar">?</span><span class="label-text">Set your name</span></button>`;
+  $("meBtn").onclick = () => askName(true);
+}
+function askName(force = false) {
+  return new Promise((resolve) => {
+    if (!force && (viaProxy() || store.get("dt-user") || S.nameSkipped)) return resolve();
+    const d = $("nameDialog");
+    $("nameInput").value = store.get("dt-user") || "";
+    d.returnValue = "";
+    d.onclose = async () => {
+      const v = $("nameInput").value.trim();
+      if (d.returnValue === "ok" && v) store.set("dt-user", v);
+      else if (d.returnValue === "skip") S.nameSkipped = true;
+      try { S.whoami = await api("/api/whoami"); } catch {}
+      renderUser();
+      resolve();
+    };
+    d.showModal();
+  });
+}
 async function initUser() {
   try { S.whoami = await api("/api/whoami"); } catch { return; }
-  const chipEl = $("userChip");
-  const viaProxy = S.whoami.user !== "anonymous" && S.whoami.user !== (store.get("dt-user") || "");
-  if (viaProxy) { chipEl.textContent = "Signed in as " + S.whoami.user; return; }
-  chipEl.innerHTML = `<label for="userName">You</label><input id="userName" placeholder="your name" value="${esc(store.get("dt-user") || "")}">`;
-  $("userName").onchange = async (e) => { store.set("dt-user", e.target.value.trim()); S.whoami = await api("/api/whoami"); };
+  renderUser();
 }
 
-$("departBtn").onclick = openDepart;
+$("departBtn").onclick = async () => { await askName(); openDepart(); };
 $("overviewNav").onclick = () => select(null);
 window.addEventListener("hashchange", () => { const v = hashVersion(); if (v !== S.selected) select(v); });
 

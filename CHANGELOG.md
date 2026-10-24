@@ -7,6 +7,20 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Web UI polish:**
+  - A stopped departure (braked, timed out) shows one state and one next action
+    (*Resume journey*) instead of also asking to clear a signal.
+  - Phones: tables keep only the columns that matter, the activity list and version
+    history show the latest entries with *Show all*, and the departures list is a short
+    vertical list.
+  - Version history shows 10 rows (*Show all*), with a *Who* column instead of repeating the version.
+  - Held times read "1d 13h", the Journey tile's dates no longer wrap, and a stop whose
+    platforms share a timetable and dwell shows them once in its header.
+  - Your name is a button (with a dialog, asked the first time you act) instead of a text
+    box in the header.
+  - Aborted departures look different from neutral states.
+  - The connections page uses the same header and logo.
+  - The sidebar has a search box and *Show all departures*.
 - **A redesigned test connections page:** a card per service (Slack, Jira Service
   Management, Databricks, ...) with its status and when it was checked, a summary and
   **Test all**, and what each connection points at (site, workspace, warehouse) with
