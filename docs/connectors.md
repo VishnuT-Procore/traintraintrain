@@ -346,6 +346,12 @@ each connector:
   shows the metrics and which `expect` rules pass. You can pick the platform and version,
   and fill in values from earlier steps, e.g. `change.key` = `CHG-42` to try the Jira
   approval check on a real ticket.
+- **Slack** (from `notifications.slack`) gets a card too: which env vars are set (bot
+  token or incoming webhook), **Test connection** (Slack's `auth.test`: the workspace and
+  bot the token belongs to; bot tokens only) and **Send test message** (posts one message
+  to the channel, after you confirm).
+- `examples/test-connections/train.yaml` is a config for just this page: the Jira,
+  Databricks and Slack connections, no steps.
 - **Steps that could change something** (creating tickets, comments, HTTP POSTs,
   commands) only run when you tick **for real**. Driver steps are sent with
   `dry_run: true` unless you do.

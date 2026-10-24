@@ -7,6 +7,9 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Slack on the test connections page:** check the bot token (`auth.test`) and send a
+  test message from the browser. `examples/test-connections/train.yaml` sets up just the
+  connections (Slack, Databricks, Jira), no steps.
 - **`stop_if:` on steps:** rules that end a step at once, without waiting out `until`.
   With `stop_if: ["approval == 'declined'"]`, a declined Jira approval stops the train
   immediately; resuming raises a new change request. The test connections page shows

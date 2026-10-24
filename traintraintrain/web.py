@@ -142,7 +142,7 @@ class App:
                 "live_probe": bool(self.cfg.live_version_command),
                 "track_versions_by": self.cfg.track_versions_by,
                 "changes_head": self.cfg.changes.head if self.cfg.changes else None,
-                "connectors": len(self.cfg.connectors)}
+                "connectors": len(self.cfg.connectors) + (self.cfg.slack is not None)}
 
     def timetable_view(self) -> dict:
         try:
@@ -198,7 +198,23 @@ class App:
 
     def connectors_view(self) -> dict:
         return {"train": self.cfg.name, "platforms": [p.name for p in self.cfg.platforms],
-                "connectors": connector_test.inventory(self.cfg)}
+                "connectors": connector_test.inventory(self.cfg), "slack": connector_test.slack_view(self.cfg)}
+
+    def slack_ping(self, body: dict, user: str) -> dict:
+        try:
+            result = connector_test.slack_ping(self.cfg)
+        except connector_test.ConnectorTestError as e:
+            raise ApiError(HTTPStatus.BAD_REQUEST, str(e))
+        self._audit(user, "connector_ping", "connectors", connector="slack", ok=result["ok"])
+        return result
+
+    def slack_send(self, body: dict, user: str) -> dict:
+        try:
+            result = connector_test.slack_send(self.cfg, user=user)
+        except connector_test.ConnectorTestError as e:
+            raise ApiError(HTTPStatus.BAD_REQUEST, str(e))
+        self._audit(user, "slack_test_message", "connectors", ok=result["ok"])
+        return result
 
     def connector_ping(self, body: dict, user: str) -> dict:
         try:
@@ -460,6 +476,7 @@ def make_handler(app: App):
                 "/api/departures/brake": app.brake,
                 "/api/departures/clear-signal": app.clear_signal,
                 "/api/connectors/ping": app.connector_ping, "/api/connectors/test": app.connector_test,
+                "/api/slack/ping": app.slack_ping, "/api/slack/send": app.slack_send,
                 # Pre-rename paths.
                 "/api/runs/start": app.depart, "/api/runs/resume": app.resume,
                 "/api/runs/abort": app.brake, "/api/runs/approve": app.clear_signal,

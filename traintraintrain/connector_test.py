@@ -4,6 +4,7 @@
     ping(cfg, name)         a quick read-only check that the connector's credentials and
                             network work (who am I / server version), where the type has one
     run_test(cfg, name, ...) one step's call, once, with its `expect` rules evaluated
+    slack_view/slack_ping/slack_send   the same for Slack notifications (not a connector)
 
 Steps that may change things (creating tickets, HTTP POSTs, commands) only run with
 `for_real`; driver steps are sent with dry_run unless `for_real`.
@@ -11,10 +12,12 @@ Steps that may change things (creating tickets, HTTP POSTs, commands) only run w
 from __future__ import annotations
 
 import getpass
+import os
 import re
+import urllib.error
 from datetime import timedelta
 
-from . import checks, connectors, live
+from . import checks, connectors, live, notify
 from .storage import backend_for
 
 TEST_TIMEOUT = timedelta(seconds=60)  # a test waits at most this long for one call
@@ -148,3 +151,77 @@ def run_test(cfg, name: str, step: str | None = None, platform: str | None = Non
             "passed": result.ok and not stopped and all(r.ok for r in results), "stopped": stopped,
             "message": result.message,
             "metrics": result.metrics, "checks": [r.as_dict() for r in results], "log": result.log}
+
+
+# ---- Slack notifications ----------------------------------------------------------------
+
+def slack_view(cfg) -> dict | None:
+    """How notifications.slack is set up: which mode its env vars give (bot, webhook or none)."""
+    s = cfg.slack
+    if s is None:
+        return None
+    token_set, webhook_set = bool(os.environ.get(s.token_env)), bool(os.environ.get(s.webhook_url_env))
+    mode = "bot" if token_set and s.channel else "webhook" if webhook_set else None
+    return {"mode": mode, "channel": s.channel, "token_env": s.token_env, "token_set": token_set,
+            "webhook_url_env": s.webhook_url_env, "webhook_set": webhook_set}
+
+
+def _slack(cfg):
+    view = slack_view(cfg)
+    if view is None:
+        raise ConnectorTestError("no notifications.slack section in this train's config")
+    if view["mode"] is None:
+        need = f"${view['token_env']}" + (" (with `channel`)" if not view["channel"] else "")
+        return view, None, f"Slack isn't set up: export {need} or ${view['webhook_url_env']}"
+    return view, cfg.slack, None
+
+
+def _slack_post(settings, url: str, payload: dict, headers: dict, post) -> dict:
+    try:
+        if post:
+            return post(url, payload, headers)
+        return notify.http_post(url, payload, headers, settings.timeout)
+    except urllib.error.HTTPError as e:
+        return {"ok": False, "error": f"HTTP {e.code}"}
+    except (urllib.error.URLError, OSError) as e:
+        return {"ok": False, "error": f"can't reach Slack: {getattr(e, 'reason', e)}"}
+
+
+def slack_ping(cfg, post=None) -> dict:
+    """Bot token: Slack's auth.test (who the token belongs to). Webhooks can't be checked without posting."""
+    view, settings, problem = _slack(cfg)
+    out = {"connector": "slack", "type": "slack", "mode": view["mode"], "supported": True, "metrics": {}}
+    if problem:
+        return {**out, "ok": False, "message": problem}
+    if view["mode"] == "webhook":
+        return {**out, "supported": False, "ok": None,
+                "message": "an incoming webhook can only be checked by posting to it: use Send test message"}
+    token = os.environ[settings.token_env]
+    r = _slack_post(settings, notify.SLACK_API + "auth.test", {}, {"Authorization": f"Bearer {token}"}, post)
+    if not r.get("ok"):
+        return {**out, "ok": False, "message": f"Slack auth.test failed: {r.get('error', r)}"}
+    metrics = {"team": r.get("team"), "user": r.get("user"), "channel": settings.channel}
+    return {**out, "ok": True, "metrics": metrics,
+            "message": f"signed in to {r.get('team')} as {r.get('user')}; messages go to {settings.channel}"}
+
+
+def slack_send(cfg, user: str | None = None, post=None) -> dict:
+    """Post one test message to the train's channel (bot) or webhook."""
+    view, settings, problem = _slack(cfg)
+    out = {"connector": "slack", "type": "slack", "mode": view["mode"], "metrics": {}}
+    if problem:
+        return {**out, "ok": False, "message": problem}
+    text = (f":white_check_mark: Test message from traintraintrain ({cfg.name}), "
+            f"sent by {user or getpass.getuser()} from the test connections page")
+    if view["mode"] == "bot":
+        token = os.environ[settings.token_env]
+        r = _slack_post(settings, notify.SLACK_API + "chat.postMessage", {"channel": settings.channel, "text": text},
+                        {"Authorization": f"Bearer {token}"}, post)
+        where = settings.channel
+    else:
+        r = _slack_post(settings, os.environ[settings.webhook_url_env], {"text": text}, {}, post)
+        where = "the incoming webhook's channel"
+    if not r.get("ok"):
+        return {**out, "ok": False, "message": f"Slack didn't take the message: {r.get('error') or r.get('raw') or r}"}
+    return {**out, "ok": True, "metrics": {k: r[k] for k in ("channel", "ts") if r.get(k)},
+            "message": f"sent a test message to {where}"}

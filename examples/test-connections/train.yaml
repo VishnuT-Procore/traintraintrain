@@ -1,0 +1,38 @@
+# Just the connections, for the test connections page: Slack, Databricks and Jira
+# Service Management. Each card's "Test connection" checks the credentials.
+#
+#   export JIRA_URL=https://<site>.atlassian.net JIRA_EMAIL=you@acme.com JIRA_API_TOKEN=...
+#   export DATABRICKS_HOST=https://<workspace>.cloud.databricks.com DATABRICKS_TOKEN=dapi...
+#   export DATABRICKS_WAREHOUSE_ID=<id>
+#   export SLACK_BOT_TOKEN=xoxb-...              # or SLACK_WEBHOOK_URL=https://hooks.slack.com/...
+#   traintraintrain -c examples/test-connections/train.yaml ui --port 8090
+#
+# then open http://127.0.0.1:8090/test_connection.html. Nothing here deploys anything.
+connectors:
+  jira:
+    type: jira
+    url: ${JIRA_URL}
+    email: ${JIRA_EMAIL}
+    api_token: ${JIRA_API_TOKEN}
+    # token: ${JIRA_PAT}                        # Jira Data Center: instead of email + api_token
+  lakehouse:
+    type: databricks
+    host: ${DATABRICKS_HOST}
+    token: ${DATABRICKS_TOKEN}
+    warehouse_id: ${DATABRICKS_WAREHOUSE_ID}
+
+notifications:
+  slack:
+    channel: "#deploys"                         # the channel your bot is invited to
+    token_env: SLACK_BOT_TOKEN
+    webhook_url_env: SLACK_WEBHOOK_URL
+
+# traintraintrain needs a train to load; this one is never departed.
+train:
+  name: connection-test
+  deploy_command: "echo 'nothing deploys from this config'"
+  state_dir: ./state
+
+stops:
+  - name: test
+    platforms: [local]

@@ -144,3 +144,54 @@ def test_cli_ping_and_values(ui, capsys, tmp_path):
     assert "approval = 'pending'" in out and "step would FAIL" in out
     assert cli.main(["-c", path, "connectors", "test", "jira", "--step", "approved", "--value", "nonsense"]) == 1
     assert "step.metric=value" in capsys.readouterr().err
+
+
+def slack_ui(tmp_path, services, monkeypatch, slack):
+    raw = {"train": {"name": "cde", "deploy_command": "true", "state_dir": str(tmp_path / "s2")},
+           "notifications": {"slack": slack}, "stops": [{"platforms": ["p1"]}]}
+    monkeypatch.setattr("traintraintrain.notify.SLACK_API", services.url + "/api/")
+    app = App(config.from_dict(raw, base_dir=tmp_path), str(tmp_path / "train.yaml"))
+    httpd = Server(("127.0.0.1", 0), make_handler(app))
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    return f"http://127.0.0.1:{httpd.server_address[1]}", app, httpd
+
+
+def test_slack_bot_token(tmp_path, services, monkeypatch):
+    monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-1")
+    monkeypatch.delenv("SLACK_WEBHOOK_URL", raising=False)
+    services.routes[("POST", "/api/auth.test")] = lambda q: (200, {"ok": True, "team": "Acme", "user": "trainbot"})
+    services.routes[("POST", "/api/chat.postMessage")] = lambda q: (200, {"ok": True, "channel": "C1", "ts": "1.2"})
+    base, app, httpd = slack_ui(tmp_path, services, monkeypatch, {"channel": "#deploys"})
+    try:
+        data = call(base, "/api/connectors")[1]
+        assert data["slack"]["mode"] == "bot" and data["slack"]["token_set"] and "xoxb" not in json.dumps(data)
+        assert call(base, "/api/config")[1]["connectors"] == 1
+        code, r = call(base, "/api/slack/ping", {})
+        assert r["ok"] and r["message"] == "signed in to Acme as trainbot; messages go to #deploys"
+        assert services.requests[-1]["headers"]["Authorization"] == "Bearer xoxb-1"
+        code, r = call(base, "/api/slack/send", {})
+        assert r["ok"] and r["metrics"] == {"channel": "C1", "ts": "1.2"}
+        sent = json.loads(services.requests[-1]["body"])
+        assert sent["channel"] == "#deploys" and "sent by vishnu" in sent["text"]
+        assert any(e["action"] == "slack_test_message" for e in app.backend.audit_entries("cde", "connectors"))
+        services.routes[("POST", "/api/auth.test")] = lambda q: (200, {"ok": False, "error": "invalid_auth"})
+        assert call(base, "/api/slack/ping", {})[1]["message"] == "Slack auth.test failed: invalid_auth"
+    finally:
+        httpd.shutdown()
+
+
+def test_slack_webhook_and_not_set_up(tmp_path, services, monkeypatch):
+    monkeypatch.delenv("SLACK_BOT_TOKEN", raising=False)
+    monkeypatch.setenv("SLACK_WEBHOOK_URL", services.url + "/hook")
+    services.routes[("POST", "/hook")] = lambda q: (200, b"ok")
+    base, _, httpd = slack_ui(tmp_path, services, monkeypatch, {})
+    try:
+        assert call(base, "/api/slack/ping", {})[1]["supported"] is False
+        r = call(base, "/api/slack/send", {})[1]
+        assert r["ok"] and r["message"] == "sent a test message to the incoming webhook's channel"
+        monkeypatch.delenv("SLACK_WEBHOOK_URL")
+        assert call(base, "/api/connectors")[1]["slack"]["mode"] is None
+        r = call(base, "/api/slack/send", {})[1]
+        assert not r["ok"] and "export $SLACK_BOT_TOKEN (with `channel`) or $SLACK_WEBHOOK_URL" in r["message"]
+    finally:
+        httpd.shutdown()

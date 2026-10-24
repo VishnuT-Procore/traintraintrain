@@ -36,6 +36,7 @@ jobs:
           traintraintrain -c examples/pipeline/train.yaml connectors list
           traintraintrain -c examples/databricks/train.yaml connectors list
           traintraintrain -c examples/jira/train.yaml connectors list
+          traintraintrain -c examples/test-connections/train.yaml connectors list
           traintraintrain -c examples/driver/train.yaml plan
 
 

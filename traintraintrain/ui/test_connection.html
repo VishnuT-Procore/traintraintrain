@@ -34,7 +34,8 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 60px; }
 h1 { font-size: 24px; margin: 0 0 6px; letter-spacing: -.01em; }
 .lead { color: var(--ink-2); margin: 0 0 20px; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; }
-.chead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.chead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 14px 16px; }
+.chead + div:not(:empty), .step { border-top: 1px solid var(--border); }
 .chead h2 { font-size: 17px; margin: 0; }
 .chead .settings { color: var(--ink-3); font-size: 12.5px; flex-basis: 100%; overflow-wrap: anywhere; }
 .chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 2px 8px;
@@ -48,8 +49,7 @@ h1 { font-size: 24px; margin: 0 0 6px; letter-spacing: -.01em; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .btn:disabled { opacity: .55; cursor: wait; }
 .ml { margin-left: auto; }
-.step { padding: 14px 16px; border-bottom: 1px solid var(--border); }
-.step:last-child { border-bottom: none; }
+.step { padding: 14px 16px; }
 .step .top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 .step .sname { font-weight: 650; }
 .step .where { color: var(--ink-3); font-size: 13px; }
@@ -86,9 +86,9 @@ h1 { font-size: 24px; margin: 0 0 6px; letter-spacing: -.01em; }
 </header>
 <main>
   <h1>Test connections</h1>
-  <p class="lead">Check that each connector's credentials and network work, and try the calls your steps make,
-    without deploying anything. Steps that could change something (creating tickets, comments, HTTP POSTs,
-    commands) only run when you tick <strong>for real</strong>. Every test is recorded in the audit log.</p>
+  <p class="lead">Check that each connection's credentials and network work, without deploying anything.
+    If your train has steps that use a connection, you can also try them here; steps that could change
+    something only run when you tick <strong>for real</strong>. Every test is recorded in the audit log.</p>
   <div id="list"><div class="empty">Loading…</div></div>
 </main>
 <script>
@@ -167,26 +167,59 @@ function stepHtml(c, s, ci, si, platforms) {
     <div id="${id}_out"></div></div>`;
 }
 
+function slackHtml(s) {
+  if (!s) return "";
+  const envs = [`${s.token_env} ${s.token_set ? "set" : "not set"}`, `${s.webhook_url_env} ${s.webhook_set ? "set" : "not set"}`,
+    s.channel ? `channel ${s.channel}` : "no channel"].join(" · ");
+  const mode = s.mode === "bot" ? `<span class="chip good">bot token</span>`
+    : s.mode === "webhook" ? `<span class="chip good">incoming webhook</span>` : `<span class="chip bad">not set up</span>`;
+  return `<section class="card">
+    <div class="chead"><h2>slack</h2><span class="chip">notifications</span>${mode}
+      <span class="ml"></span>
+      ${s.mode === "bot" ? `<button class="btn" id="slackPing">Test connection</button>` : ""}
+      ${s.mode ? `<button class="btn primary" id="slackSend">Send test message</button>` : ""}
+      <span class="settings mono">${esc(envs)}</span></div>
+    <div id="slack_out" style="padding:0 16px">${s.mode ? "" : `<div class="result bad"><div class="msg">Export
+      <code>${esc(s.token_env)}</code> (with <code>channel:</code> in notifications.slack) or <code>${esc(s.webhook_url_env)}</code>
+      before starting the UI.</div></div><div style="height:12px"></div>`}</div>
+  </section>`;
+}
+
+async function slack(action, btn) {
+  if (action === "send" && !confirm(`Post a test message to ${DATA.slack.channel || "the webhook's channel"}?`)) return;
+  const out = $("slack_out");
+  btn.disabled = true; out.innerHTML = `<div class="result info">${action === "send" ? "Sending…" : "Checking slack…"}</div>`;
+  try {
+    const r = await api(`/api/slack/${action}`, {});
+    const html = action === "send"
+      ? `<div class="result ${r.ok ? "good" : "bad"}"><span class="${r.ok ? "ok" : "no"}">${r.ok ? "Sent" : "Failed"}</span><div class="msg">${esc(r.message)}</div></div>`
+      : resultHtml(r, "ping");
+    out.innerHTML = html + "<div style='height:12px'></div>";
+  } catch (e) { out.innerHTML = `<div class="result bad">${esc(e.message)}</div>`; }
+  finally { btn.disabled = false; }
+}
+
 let DATA = null;
 async function load() {
   try { DATA = await api("/api/connectors"); }
   catch (e) { $("list").innerHTML = `<div class="card"><div class="empty">${esc(e.message)}</div></div>`; return; }
   $("trainName").textContent = "· " + DATA.train;
   document.title = `Test connections · ${DATA.train}`;
-  if (!DATA.connectors.length) {
-    $("list").innerHTML = `<div class="card"><div class="empty">No connectors in this train's config. Add a
-      <code>connectors:</code> section; see docs/connectors.md.</div></div>`;
+  if (!DATA.connectors.length && !DATA.slack) {
+    $("list").innerHTML = `<div class="card"><div class="empty">No connectors or Slack in this train's config. Add a
+      <code>connectors:</code> section or <code>notifications.slack</code>; see docs/connectors.md.</div></div>`;
     return;
   }
-  $("list").innerHTML = DATA.connectors.map((c, ci) => `<section class="card">
+  $("list").innerHTML = slackHtml(DATA.slack) + DATA.connectors.map((c, ci) => `<section class="card">
     <div class="chead"><h2>${esc(c.name)}</h2><span class="chip">${esc(c.type)}</span>
       ${c.can_ping ? `<button class="btn ml" data-ping="${ci}">Test connection</button>` : `<span class="note ml">No connection check for this type: run a step</span>`}
       <span class="settings mono">${esc(c.settings)}</span></div>
     <div id="p${ci}_out" style="padding:0 16px"></div>
-    ${c.steps.length ? c.steps.map((s, si) => stepHtml(c, s, ci, si, DATA.platforms)).join("")
-      : `<div class="step note">No step uses this connector yet.</div>`}
+    ${c.steps.map((s, si) => stepHtml(c, s, ci, si, DATA.platforms)).join("")}
   </section>`).join("");
   document.querySelectorAll("[data-ping]").forEach((b) => b.onclick = () => ping(b));
+  if ($("slackPing")) $("slackPing").onclick = () => slack("ping", $("slackPing"));
+  if ($("slackSend")) $("slackSend").onclick = () => slack("send", $("slackSend"));
   document.querySelectorAll("[data-run]").forEach((b) => b.onclick = () => run(b));
 }
 
