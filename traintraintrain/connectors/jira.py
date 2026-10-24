@@ -64,7 +64,7 @@ import urllib.parse
 import urllib.request
 
 from ..timetable import parse_duration
-from . import Connector, ConnectorError, StepResult, render
+from . import Connector, ConnectorError, StepResult, error_log, render
 
 ACTIONS = ("search", "issue", "approval", "create", "transition", "comment")
 READ_ONLY = ("search", "issue", "approval")
@@ -158,10 +158,11 @@ class JiraConnector(Connector):
                     or data.get("message") or text
             except ValueError:
                 detail = text
-            raise ConnectorError(f"jira {method} {path.split('?')[0]} returned HTTP {e.code}: {str(detail)[:300]}") \
-                from None
+            raise ConnectorError(f"jira {method} {path.split('?')[0]} returned HTTP {e.code}: {str(detail)[:300]}",
+                                 error_log(method, req.full_url, e.code, text)) from None
         except (urllib.error.URLError, OSError) as e:
-            raise ConnectorError(f"can't reach jira: {getattr(e, 'reason', e)}") from None
+            raise ConnectorError(f"can't reach jira: {getattr(e, 'reason', e)}",
+                                 error_log(method, req.full_url, error=e)) from None
 
     def ping(self, ctx, timeout):
         me = self._api("GET", "/rest/api/2/myself", timeout=timeout.total_seconds())

@@ -43,7 +43,7 @@ def make(tmp_path, url):
         },
         "train": {"name": "cde", "deploy_command": "true", "state_dir": str(tmp_path / "state"),
                   "before": [{"name": "approved", "use": "jira", "action": "approval", "key": "{steps.change.key}",
-                              "expect": ["approval == 'approved'"]}],
+                              "expect": ["approval == 'approved'"], "stop_if": ["approval == 'declined'"]}],
                   "steps": [{"name": "incidents", "use": "jira", "action": "search", "jql": "labels = {platform}",
                              "expect": ["count == 0"]},
                             "deploy",
@@ -81,7 +81,7 @@ def call(base, path, body=None):
 
 
 def test_the_page_lists_connectors_and_their_steps(ui):
-    base, _, _ = ui
+    base, _, services = ui
     code, html = call(base, "/test_connection.html")
     assert code == 200 and "Test connections" in html
     code, data = call(base, "/api/connectors")
@@ -89,13 +89,34 @@ def test_the_page_lists_connectors_and_their_steps(ui):
     assert by["jira"]["can_ping"] and by["lake"]["can_ping"] and not by["script"]["can_ping"]
     steps = {s["name"]: s for s in by["jira"]["steps"]}
     assert steps["approved"]["where"] == "before departing" and steps["approved"]["needs"] == ["change.key"]
+    assert steps["approved"]["stop_if"] == ["approval == 'declined'"]
     assert steps["incidents"]["read_only"] and not steps["note"]["read_only"]
     assert steps["incidents"]["platforms"] == ["p1", "p2"] and "pat" not in json.dumps(data)
     assert call(base, "/api/config")[1]["connectors"] == 3
+    # Details: non-secret values shown, secrets only as set / not set.
+    details = {d["key"]: d for d in by["lake"]["details"]}
+    assert details["host"]["value"] == services.url and details["warehouse_id"]["value"] == "wh1"
+    assert details["token"] == {"key": "token", "secret": True, "set": True, "value": None, "missing": None}
+
+
+def test_details_show_missing_env_vars_and_no_secrets(tmp_path, monkeypatch):
+    from traintraintrain import connector_test
+    monkeypatch.setenv("PG_URL", "postgresql://app:hunter2@db.internal:5432/payments?sslmode=require")
+    monkeypatch.delenv("JIRA_TOKEN_X", raising=False)
+    cfg = config.from_dict({
+        "connectors": {"pg": {"type": "postgres", "url": "${PG_URL}"},
+                       "jira": {"type": "jira", "url": "https://acme.atlassian.net", "token": "${JIRA_TOKEN_X}"}},
+        "train": {"name": "t", "deploy_command": "true", "state_dir": str(tmp_path / "s")},
+        "stops": [{"platforms": ["p1"]}]}, base_dir=tmp_path)
+    inv = {c["name"]: c for c in connector_test.inventory(cfg)}
+    assert inv["pg"]["details"][0]["value"] == "db.internal:5432" and "hunter2" not in json.dumps(inv)
+    jira = {d["key"]: d for d in inv["jira"]["details"]}
+    assert jira["url"]["value"] == "https://acme.atlassian.net"
+    assert jira["token"]["set"] is False and jira["token"]["missing"] == "JIRA_TOKEN_X"
 
 
 def test_test_connection(ui):
-    base, _, _ = ui
+    base, _, services = ui
     code, r = call(base, "/api/connectors/ping", {"connector": "jira"})
     assert code == 200 and r["ok"] and r["metrics"]["user"] == "Vishnu"
     code, r = call(base, "/api/connectors/ping", {"connector": "lake"})
@@ -103,6 +124,12 @@ def test_test_connection(ui):
     code, r = call(base, "/api/connectors/ping", {"connector": "script"})
     assert code == 200 and r["supported"] is False
     assert call(base, "/api/connectors/ping", {"connector": "nope"})[0] == 400
+    # A failure carries the full error log: request, status and the service's reply.
+    services.routes[("GET", "/rest/api/2/myself")] = lambda q: (401, {"errorMessages": ["Bad token"], "hint": "x"})
+    code, r = call(base, "/api/connectors/ping", {"connector": "jira"})
+    assert not r["ok"] and r["message"] == "jira GET /rest/api/2/myself returned HTTP 401: Bad token"
+    assert r["log"].startswith(f"request:  GET {services.url}/rest/api/2/myself\nresponse: HTTP 401\n\n")
+    assert '"hint": "x"' in r["log"] and "pat" not in r["log"]
 
 
 def test_running_steps(ui):
@@ -117,7 +144,12 @@ def test_running_steps(ui):
     assert not r["ok"] and "no issue key" in r["message"]
     code, r = call(base, "/api/connectors/test", {"connector": "jira", "step": "approved",
                                                   "values": {"change.key": "CHG-7"}})
-    assert r["ok"] and r["metrics"]["approval"] == "pending" and not r["passed"]
+    assert r["ok"] and r["metrics"]["approval"] == "pending" and not r["passed"] and r["stopped"] is None
+    services.routes[("GET", "/rest/servicedeskapi/request/CHG-9/approval")] = \
+        lambda q: (200, {"values": [{"name": "CAB", "finalDecision": "declined"}]})
+    code, r = call(base, "/api/connectors/test", {"connector": "jira", "step": "approved",
+                                                  "values": {"change.key": "CHG-9"}})
+    assert not r["passed"] and r["stopped"] == "approval is 'declined' (stop_if: approval == 'declined')"
     # Steps that change things need for_real.
     code, r = call(base, "/api/connectors/test", {"connector": "jira", "step": "note"})
     assert code == 400 and "for-real" in r["error"]
@@ -138,3 +170,60 @@ def test_cli_ping_and_values(ui, capsys, tmp_path):
     assert "approval = 'pending'" in out and "step would FAIL" in out
     assert cli.main(["-c", path, "connectors", "test", "jira", "--step", "approved", "--value", "nonsense"]) == 1
     assert "step.metric=value" in capsys.readouterr().err
+
+
+def slack_ui(tmp_path, services, monkeypatch, slack):
+    raw = {"train": {"name": "cde", "deploy_command": "true", "state_dir": str(tmp_path / "s2")},
+           "notifications": {"slack": slack}, "stops": [{"platforms": ["p1"]}]}
+    monkeypatch.setattr("traintraintrain.notify.SLACK_API", services.url + "/api/")
+    app = App(config.from_dict(raw, base_dir=tmp_path), str(tmp_path / "train.yaml"))
+    httpd = Server(("127.0.0.1", 0), make_handler(app))
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    return f"http://127.0.0.1:{httpd.server_address[1]}", app, httpd
+
+
+def test_slack_bot_token(tmp_path, services, monkeypatch):
+    monkeypatch.setenv("SLACK_BOT_TOKEN", "xoxb-1")
+    monkeypatch.delenv("SLACK_WEBHOOK_URL", raising=False)
+    services.routes[("POST", "/api/auth.test")] = lambda q: (200, {"ok": True, "team": "Acme", "user": "trainbot"})
+    services.routes[("POST", "/api/chat.postMessage")] = lambda q: (200, {"ok": True, "channel": "C1", "ts": "1.2"})
+    base, app, httpd = slack_ui(tmp_path, services, monkeypatch, {"channel": "#deploys"})
+    try:
+        data = call(base, "/api/connectors")[1]
+        assert data["slack"]["mode"] == "bot" and data["slack"]["token_set"] and "xoxb" not in json.dumps(data)
+        assert call(base, "/api/config")[1]["connectors"] == 1
+        code, r = call(base, "/api/slack/ping", {})
+        assert r["ok"] and r["message"] == "signed in to Acme as trainbot; messages go to #deploys"
+        assert services.requests[-1]["headers"]["Authorization"] == "Bearer xoxb-1"
+        code, r = call(base, "/api/slack/send", {})
+        assert r["ok"] and r["metrics"] == {"channel": "C1", "ts": "1.2"}
+        sent = json.loads(services.requests[-1]["body"])
+        assert sent["channel"] == "#deploys" and "sent by vishnu" in sent["text"]
+        assert any(e["action"] == "slack_test_message" for e in app.backend.audit_entries("cde", "connectors"))
+        services.routes[("POST", "/api/auth.test")] = lambda q: (200, {"ok": False, "error": "invalid_auth"})
+        r = call(base, "/api/slack/ping", {})[1]
+        assert r["message"] == "Slack auth.test failed: invalid_auth" and '"error": "invalid_auth"' in r["log"]
+    finally:
+        httpd.shutdown()
+
+
+def test_slack_webhook_and_not_set_up(tmp_path, services, monkeypatch):
+    monkeypatch.delenv("SLACK_BOT_TOKEN", raising=False)
+    monkeypatch.setenv("SLACK_WEBHOOK_URL", services.url + "/hook")
+    services.routes[("POST", "/hook")] = lambda q: (200, b"ok")
+    base, _, httpd = slack_ui(tmp_path, services, monkeypatch, {})
+    try:
+        assert call(base, "/api/slack/ping", {})[1]["supported"] is False
+        monkeypatch.setenv("SLACK_WEBHOOK_URL", services.url + "/services/T1/B2/secret")
+        services.routes[("POST", "/services/T1/B2/secret")] = lambda q: (404, b"no_service")
+        r = call(base, "/api/slack/send", {})[1]
+        assert not r["ok"] and "HTTP 404" in r["log"] and "secret" not in r["log"] and "no_service" in r["log"]
+        monkeypatch.setenv("SLACK_WEBHOOK_URL", services.url + "/hook")
+        r = call(base, "/api/slack/send", {})[1]
+        assert r["ok"] and r["message"] == "sent a test message to the incoming webhook's channel"
+        monkeypatch.delenv("SLACK_WEBHOOK_URL")
+        assert call(base, "/api/connectors")[1]["slack"]["mode"] is None
+        r = call(base, "/api/slack/send", {})[1]
+        assert not r["ok"] and "export $SLACK_BOT_TOKEN (with `channel`) or $SLACK_WEBHOOK_URL" in r["message"]
+    finally:
+        httpd.shutdown()

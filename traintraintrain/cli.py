@@ -360,7 +360,9 @@ def cmd_connectors_test(args, cfg) -> int:
             print(f"  {'ok ' if c['ok'] else 'NO '} {c['rule']}" + (f"  ({c['why']})" if c["why"] else ""))
     if args.verbose_log and r["log"]:
         print("\nlog:\n" + r["log"])
-    print(f"\nstep {'would pass' if r['passed'] else 'would FAIL'}")
+    if r["stopped"]:
+        print(f"\nstop_if matched: {r['stopped']}")
+    print(f"\nstep {'would pass' if r['passed'] else 'would STOP the train' if r['stopped'] else 'would FAIL'}")
     return 0 if r["passed"] else 1
 
 

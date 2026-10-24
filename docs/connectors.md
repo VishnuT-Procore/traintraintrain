@@ -69,6 +69,7 @@ Every call step can also take:
 |---|---|
 | `expect` | rules the metrics must meet, e.g. `["error_rate < 1", "status == 'ready'"]` |
 | `until: 10m` (+ `every: 30s`) | retry until the rules pass, giving up after 10m (waiting for lag to drop, a job to finish); giving up is recorded as *timed out* |
+| `stop_if` | rules that stop the step at once, without waiting out `until`, e.g. `["approval == 'declined'"]` or `["error_rate > 20"]`. It counts as a failure, so `on_fail` applies |
 | `hold: 10m` (+ `every: 1m`) | the rules must keep passing for 10m (a gate during bake time) |
 | `on_fail: warn` | record a failure and carry on (default `halt`: fail the platform, roll back per `rollback_scope`, halt) |
 | `timeout: 5m` | the most one call may take (default 10m) |
@@ -116,6 +117,7 @@ train:
       action: approval
       key: "{steps.change.key}"
       expect: ["approval == 'approved'"]
+      stop_if: ["approval == 'declined'"]  # a decline stops the train at once
       until: 4h
       every: 5m
       enabled: ${REQUIRE_APPROVAL:-true}   # on by default; REQUIRE_APPROVAL=false skips it
@@ -135,6 +137,10 @@ train:
   within 4h) is recorded as **timed out** instead. The departure gets the status *Timed
   out*, nothing is deployed, and `after` steps see `{status}` = `timed_out`. Resume it
   once the request is approved: it waits on the same ticket again and then departs.
+- **A declined approval** (with `stop_if: ["approval == 'declined'"]`) stops the train at
+  once, as *Failed*: nothing is deployed and `after` steps see `{status}` = `failed`.
+  Resuming starts the `before` steps over, raising a new change request, since a
+  declined one can't be approved.
 - **On resume,** `before` steps that already passed aren't run again, so no second
   ticket is raised. A step that was skipped because it was disabled runs if it's enabled
   by then.
@@ -296,7 +302,7 @@ Common uses:
 - **Gate on incidents:** `search` for open high-priority incidents, with
   `expect: ["count == 0"]`, before each region deploys.
 - **Change management:** `create` a change request in `train.before`, then `approval`
-  with `until` to wait for the CAB.
+  with `until` to wait for the CAB and `stop_if` to stop on a decline.
 - **Audit trail:** a `comment` per region after it deploys, and a `transition` to close
   the request in `train.after`.
 
@@ -331,8 +337,8 @@ step uses this type.
 ## Checking connectors
 
 **In the browser:** open **`/test_connection.html`** on the web UI (e.g.
-http://127.0.0.1:8080/test_connection.html, also linked from the Timetable page). For
-each connector:
+http://127.0.0.1:8080/test_connection.html; it isn't linked from the board). For each
+connector:
 - **Test connection** checks the credentials and network, read-only: who you're signed
   in as for Jira and Databricks (and the warehouse's state), user and server version for
   Postgres, whether Prometheus answers queries, whether an HTTP base URL is reachable.
@@ -340,6 +346,15 @@ each connector:
   shows the metrics and which `expect` rules pass. You can pick the platform and version,
   and fill in values from earlier steps, e.g. `change.key` = `CHG-42` to try the Jira
   approval check on a real ticket.
+- **When something fails,** the result shows an **Error log**: the request (method and
+  URL, without credentials or query strings), the HTTP status and the service's full
+  reply, or the network error. **Copy** puts it on the clipboard to share.
+- **Slack** (from `notifications.slack`) gets a card too: which env vars are set (bot
+  token or incoming webhook), **Test connection** (Slack's `auth.test`: the workspace and
+  bot the token belongs to; bot tokens only) and **Send test message** (posts one message
+  to the channel, after you confirm).
+- `examples/test-connections/train.yaml` is a config for just this page: the Jira,
+  Databricks and Slack connections, no steps.
 - **Steps that could change something** (creating tickets, comments, HTTP POSTs,
   commands) only run when you tick **for real**. Driver steps are sent with
   `dry_run: true` unless you do.

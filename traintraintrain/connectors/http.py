@@ -25,7 +25,7 @@ import urllib.parse
 import urllib.request
 
 from ..timetable import parse_duration
-from . import Connector, ConnectorError, StepResult, interpolate_env, render
+from . import Connector, ConnectorError, StepResult, error_log, interpolate_env, render
 
 METHODS = ("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE")
 MAX_BODY = 2 * 1024 * 1024
@@ -122,7 +122,7 @@ class HttpConnector(Connector):
             status, raw = e.code, e.read(MAX_BODY) if e.fp else b""
         except (urllib.error.URLError, OSError) as e:
             reason = getattr(e, "reason", e)
-            return StepResult(False, {}, f"{method} {redact(url)} failed: {reason}")
+            return StepResult(False, {}, f"{method} {redact(url)} failed: {reason}", error_log(method, url, error=e))
         text = raw.decode(errors="replace")
         try:
             data = json.loads(text) if text.strip() else None

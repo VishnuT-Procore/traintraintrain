@@ -35,6 +35,7 @@ train:
       action: approval
       key: "{steps.change.key}"
       expect: ["approval == 'approved'"]
+      stop_if: ["approval == 'declined'"]  # a decline stops the train at once
       until: 4h
       every: 5m
       enabled: ${REQUIRE_APPROVAL:-true}  # approval is required unless REQUIRE_APPROVAL=false

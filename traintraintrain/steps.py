@@ -12,6 +12,7 @@
         query: ...
         expect: ["error_rate < 1"]
         until: 10m                          # retry every `every` until the rules pass
+        stop_if: ["error_rate > 20"]        # ...but stop at once, without waiting, if this matches
       - dwell                               # built-in: dwell + inspection, as without steps
 
 Without `steps:`, a platform runs [deploy, dwell], exactly as before.
@@ -27,7 +28,7 @@ from . import connectors as conn
 from .timetable import format_duration, parse_duration
 
 BUILTINS = ("deploy", "dwell")
-COMMON_KEYS = {"name", "use", "expect", "until", "hold", "every", "timeout", "on_fail", "enabled"}
+COMMON_KEYS = {"name", "use", "expect", "stop_if", "until", "hold", "every", "timeout", "on_fail", "enabled"}
 _TRUE, _FALSE = {"true", "yes", "on", "1"}, {"false", "no", "off", "0"}
 ON_FAIL = ("halt", "warn")
 
@@ -40,6 +41,7 @@ class Step:
     settings: dict = field(default_factory=dict)   # the connector-specific keys (query, request, ...)
     duration: timedelta = timedelta(0)             # for wait
     expect: list = field(default_factory=list)     # [checks.Rule]
+    stop_if: list = field(default_factory=list)    # [checks.Rule]: any match fails the step at once
     until: timedelta | None = None
     hold: timedelta | None = None
     every: timedelta = timedelta(seconds=30)
@@ -56,6 +58,8 @@ class Step:
             out["wait"] = format_duration(self.duration)
         if self.expect:
             out["expect"] = [r.text for r in self.expect]
+        if self.stop_if:
+            out["stop_if"] = [r.text for r in self.stop_if]
         if self.until:
             out["until"] = format_duration(self.until)
         if self.hold:
@@ -143,6 +147,10 @@ def parse_step(item, where: str, connectors: dict, base_dir: Path) -> Step:
         rules = checks.parse_rules(item.get("expect"))
     except (conn.ConnectorError, ValueError) as e:
         raise StepError(f"{where}: {e}") from None
+    try:
+        stop_if = checks.parse_rules(item.get("stop_if"))
+    except ValueError as e:
+        raise StepError(f"{where}: stop_if: {e}") from None
     if item.get("until") and item.get("hold"):
         raise StepError(f"{where}: use `until` (wait for the rules to pass) or `hold` (keep passing), not both")
     if (item.get("until") or item.get("hold")) and not rules:
@@ -153,7 +161,8 @@ def parse_step(item, where: str, connectors: dict, base_dir: Path) -> Step:
     enabled = _enabled(item, where)
     if name == "deploy" and not enabled:
         raise StepError(f"{where}: the deploy step can't be disabled")
-    return Step("call", name, connector=connector.name, settings=settings, expect=rules, enabled=enabled,
+    return Step("call", name, connector=connector.name, settings=settings, expect=rules, stop_if=stop_if,
+                enabled=enabled,
                 until=_duration(item["until"], where, "until") if item.get("until") else None,
                 hold=_duration(item["hold"], where, "hold") if item.get("hold") else None,
                 every=_duration(item.get("every", "30s"), where, "every"),

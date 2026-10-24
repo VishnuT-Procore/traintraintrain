@@ -4,6 +4,7 @@
     ping(cfg, name)         a quick read-only check that the connector's credentials and
                             network work (who am I / server version), where the type has one
     run_test(cfg, name, ...) one step's call, once, with its `expect` rules evaluated
+    slack_view/slack_ping/slack_send   the same for Slack notifications (not a connector)
 
 Steps that may change things (creating tickets, HTTP POSTs, commands) only run with
 `for_real`; driver steps are sent with dry_run unless `for_real`.
@@ -11,10 +12,15 @@ Steps that may change things (creating tickets, HTTP POSTs, commands) only run w
 from __future__ import annotations
 
 import getpass
+import json
+import os
 import re
+import traceback
+import urllib.error
+import urllib.parse
 from datetime import timedelta
 
-from . import checks, connectors, live
+from . import checks, connectors, live, notify
 from .storage import backend_for
 
 TEST_TIMEOUT = timedelta(seconds=60)  # a test waits at most this long for one call
@@ -50,10 +56,50 @@ def inventory(cfg) -> list[dict]:
         for where, platform, s in steps_using(cfg, name):
             platforms = [q.name for q in cfg.platforms if any(t is s for t in q.steps)] or [platform.name]
             steps.append({"name": s.name, "where": where, "read_only": c.step_is_read_only(s.settings),
-                          "expect": [r.text for r in s.expect], "platforms": platforms,
+                          "expect": [r.text for r in s.expect], "stop_if": [r.text for r in s.stop_if],
+                          "platforms": platforms,
                           "needs": sorted(_step_refs(s.settings)), "enabled": s.enabled})
         out.append({"name": name, "type": c.type_name, "settings": c.describe().split(" ", 1)[-1].strip(),
-                    "can_ping": type(c).ping is not connectors.Connector.ping, "steps": steps})
+                    "details": details(c), "can_ping": type(c).ping is not connectors.Connector.ping,
+                    "steps": steps})
+    return out
+
+
+def _shown_url(value: str) -> str | None:
+    """scheme://host[:port]/path of a URL, without credentials or query; None if it isn't one."""
+    p = urllib.parse.urlsplit(value)
+    if not p.scheme or not p.hostname:
+        return None
+    host = p.hostname + (f":{p.port}" if p.port else "")
+    return urllib.parse.urlunsplit((p.scheme, host, p.path.rstrip("/"), "", ""))
+
+
+def details(connector) -> list[dict]:
+    """What the page may show about a connector's settings: non-secret values (URLs without
+    credentials), whether each secret is set, and which env vars are missing. Never a secret."""
+    out = []
+    for key, raw in connector.settings.items():
+        if key == "type":
+            continue
+        secret = key in connector.secret_settings
+        item = {"key": key, "secret": secret, "set": True, "value": None, "missing": None}
+        try:
+            value = connectors.interpolate_env(raw)
+        except connectors.ConnectorError:
+            names = [m.group(1) for m in connectors._ENV_REF.finditer(str(raw))]
+            item.update(set=False, missing=next((n for n in names if n not in os.environ), names[0] if names else None))
+            out.append(item)
+            continue
+        if isinstance(value, str):
+            item["set"] = bool(value.strip())
+            url = _shown_url(value)
+            if url:  # never a URL's credentials or query (which may hold tokens); for a secret, just the host
+                item["value"] = url.split("/", 3)[2] if secret else url
+            elif not secret:
+                item["value"] = value
+        elif not secret and isinstance(value, (int, float, bool)):
+            item["value"] = value
+        out.append(item)
     return out
 
 
@@ -83,15 +129,15 @@ def ping(cfg, name: str) -> dict:
     try:
         result = connector.ping(ctx, TEST_TIMEOUT)
     except connectors.ConnectorError as e:
-        result = connectors.StepResult(False, {}, str(e))
+        result = connectors.StepResult(False, {}, str(e), e.log)
     except Exception as e:  # noqa: BLE001 - report, never crash the UI
-        result = connectors.StepResult(False, {}, f"{type(e).__name__}: {e}")
+        result = connectors.StepResult(False, {}, f"{type(e).__name__}: {e}", traceback.format_exc())
     if result is None:
         return {"connector": name, "type": connector.type_name, "supported": False, "ok": None,
                 "message": f"{connector.type_name} connectors have no connection check; test one of their steps",
                 "metrics": {}}
     return {"connector": name, "type": connector.type_name, "supported": True, "ok": result.ok,
-            "message": result.message, "metrics": result.metrics}
+            "message": result.message, "metrics": result.metrics, "log": result.log}
 
 
 def parse_values(pairs) -> dict:
@@ -141,7 +187,88 @@ def run_test(cfg, name: str, step: str | None = None, platform: str | None = Non
         runner=runner or shell_runner)
     result = connector.safe_call(the_step.settings, ctx, min(the_step.timeout, TEST_TIMEOUT))
     results = checks.evaluate(the_step.expect, result.metrics) if result.ok else []
+    stopped = checks.stop_reason(the_step.stop_if, result.metrics) if result.ok else None
     return {"connector": name, "type": connector.type_name, "step": the_step.name, "platform": target.name,
             "version": ctx.version, "dry_run": ctx.dry_run, "read_only": read_only, "ok": result.ok,
-            "passed": result.ok and all(r.ok for r in results), "message": result.message,
+            "passed": result.ok and not stopped and all(r.ok for r in results), "stopped": stopped,
+            "message": result.message,
             "metrics": result.metrics, "checks": [r.as_dict() for r in results], "log": result.log}
+
+
+# ---- Slack notifications ----------------------------------------------------------------
+
+def slack_view(cfg) -> dict | None:
+    """How notifications.slack is set up: which mode its env vars give (bot, webhook or none)."""
+    s = cfg.slack
+    if s is None:
+        return None
+    token_set, webhook_set = bool(os.environ.get(s.token_env)), bool(os.environ.get(s.webhook_url_env))
+    mode = "bot" if token_set and s.channel else "webhook" if webhook_set else None
+    return {"mode": mode, "channel": s.channel, "token_env": s.token_env, "token_set": token_set,
+            "webhook_url_env": s.webhook_url_env, "webhook_set": webhook_set}
+
+
+def _slack(cfg):
+    view = slack_view(cfg)
+    if view is None:
+        raise ConnectorTestError("no notifications.slack section in this train's config")
+    if view["mode"] is None:
+        need = f"${view['token_env']}" + (" (with `channel`)" if not view["channel"] else "")
+        return view, None, f"Slack isn't set up: export {need} or ${view['webhook_url_env']}"
+    return view, cfg.slack, None
+
+
+def _slack_post(settings, url: str, payload: dict, headers: dict, post) -> tuple[dict, str]:
+    """(Slack's reply, the error log when it failed). The log never shows a webhook's secret path."""
+    shown = url if url.startswith(notify.SLACK_API) else url.split("/services/")[0] + "/services/•••"
+    try:
+        r = post(url, payload, headers) if post else notify.http_post(url, payload, headers, settings.timeout)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors="replace") if e.fp else ""
+        return {"ok": False, "error": f"HTTP {e.code}"}, connectors.error_log("POST", shown, e.code, body)
+    except (urllib.error.URLError, OSError) as e:
+        return ({"ok": False, "error": f"can't reach Slack: {getattr(e, 'reason', e)}"},
+                connectors.error_log("POST", shown, error=e))
+    log = "" if r.get("ok") else connectors.error_log("POST", shown, 200, json.dumps(r, indent=2))
+    return r, log
+
+
+def slack_ping(cfg, post=None) -> dict:
+    """Bot token: Slack's auth.test (who the token belongs to). Webhooks can't be checked without posting."""
+    view, settings, problem = _slack(cfg)
+    out = {"connector": "slack", "type": "slack", "mode": view["mode"], "supported": True, "metrics": {}}
+    if problem:
+        return {**out, "ok": False, "message": problem}
+    if view["mode"] == "webhook":
+        return {**out, "supported": False, "ok": None,
+                "message": "an incoming webhook can only be checked by posting to it: use Send test message"}
+    token = os.environ[settings.token_env]
+    r, log = _slack_post(settings, notify.SLACK_API + "auth.test", {}, {"Authorization": f"Bearer {token}"}, post)
+    if not r.get("ok"):
+        return {**out, "ok": False, "message": f"Slack auth.test failed: {r.get('error', r)}", "log": log}
+    metrics = {"team": r.get("team"), "user": r.get("user"), "channel": settings.channel}
+    return {**out, "ok": True, "metrics": metrics,
+            "message": f"signed in to {r.get('team')} as {r.get('user')}; messages go to {settings.channel}"}
+
+
+def slack_send(cfg, user: str | None = None, post=None) -> dict:
+    """Post one test message to the train's channel (bot) or webhook."""
+    view, settings, problem = _slack(cfg)
+    out = {"connector": "slack", "type": "slack", "mode": view["mode"], "metrics": {}}
+    if problem:
+        return {**out, "ok": False, "message": problem}
+    text = (f":white_check_mark: Test message from traintraintrain ({cfg.name}), "
+            f"sent by {user or getpass.getuser()} from the test connections page")
+    if view["mode"] == "bot":
+        token = os.environ[settings.token_env]
+        r, log = _slack_post(settings, notify.SLACK_API + "chat.postMessage",
+                             {"channel": settings.channel, "text": text}, {"Authorization": f"Bearer {token}"}, post)
+        where = settings.channel
+    else:
+        r, log = _slack_post(settings, os.environ[settings.webhook_url_env], {"text": text}, {}, post)
+        where = "the incoming webhook's channel"
+    if not r.get("ok"):
+        return {**out, "ok": False, "log": log,
+                "message": f"Slack didn't take the message: {r.get('error') or r.get('raw') or r}"}
+    return {**out, "ok": True, "metrics": {k: r[k] for k in ("channel", "ts") if r.get(k)},
+            "message": f"sent a test message to {where}"}

@@ -674,6 +674,7 @@ class Train:
         """Call a step's connector until it passes, fails, or its until/hold window ends.
 
         Returns (passed, why not, last result, timed out: its `until` window ran out).
+        A matching `stop_if` rule ends it at once, as a failure.
         `record` stores the step's progress, `where` is the platform its events belong to
         (None: the whole train), `waiting` shows a status message while `until` retries.
         """
@@ -687,13 +688,18 @@ class Train:
             passed = result.ok and all(r.ok for r in results)
             reason = result.message if not result.ok else "; ".join(
                 f"{r.rule} ({r.why})" for r in results if not r.ok)
+            stop = checks.stop_reason(step.stop_if, result.metrics) if result.ok else None
+            if stop:
+                passed, reason = False, f"stopped: {stop}"
             metrics[step.name] = result.metrics
             record(metrics=result.metrics, checks=[r.as_dict() for r in results], message=result.message,
                    attempts=attempts)
             shown = ", ".join(f"{k}={v}" for k, v in result.metrics.items())
             self.state.event(self.clock.now(), f"step {step.name}: {shown + ' — ' if shown else ''}"
-                             f"{'passed' if passed else 'failed: ' + reason}", where)
+                             f"{'passed' if passed else (reason if stop else 'failed: ' + reason)}", where)
             elapsed = self.clock.now() - started
+            if stop:  # a stop_if rule matched: no more waiting
+                return False, reason, result, False
             if step.hold is not None:
                 if not passed:
                     return False, f"stopped passing after {format_duration(elapsed)}: {reason}", result, False
@@ -729,15 +735,20 @@ class Train:
         Returns (why `before` stopped the departure, whether that was a timeout), or (None, False).
 
         `before` steps that already passed are kept on resume (so a change ticket isn't
-        raised twice); `after` steps run every time the departure ends, and their
+        raised twice), unless a `stop_if` rule stopped one: then they all run again;
+        `after` steps run every time the departure ends, and their
         failures are recorded but change nothing.
         """
         if not steps:
             return None, False
         records = self.state.data.setdefault("departure_steps", {})
         old = records.get(phase) or []
-        if phase == "after" or [r.get("name") for r in old] != [s.name for s in steps]:
+        # A `stop_if` stop (e.g. a declined approval) starts `before` over: a new change ticket.
+        stopped = next((r["name"] for r in old if r.get("stopped_by_rule")), None)
+        if phase == "after" or stopped or [r.get("name") for r in old] != [s.name for s in steps]:
             records[phase] = [{**s.summary(), "status": "pending"} for s in steps]
+        if phase == "before" and stopped:
+            self.state.event(self.clock.now(), f"before steps start over (step {stopped} was stopped by stop_if)")
         self.state.save()
         metrics = self._departure_metrics
         for i, step in enumerate(steps):
@@ -786,8 +797,10 @@ class Train:
                 record(status="timed_out", message=reason, finished_at=_iso(self.clock.now()))
                 return f"step {step.name} {reason}", True
             else:
-                record(status="failed", message=reason, finished_at=_iso(self.clock.now()))
-                return f"step {step.name} failed: {reason}", False
+                record(status="failed", message=reason, finished_at=_iso(self.clock.now()),
+                       **({"stopped_by_rule": True} if reason.startswith("stopped: ") else {}))
+                return (f"step {step.name} {reason}" if reason.startswith("stopped: ")
+                        else f"step {step.name} failed: {reason}"), False
         return None, False
 
     def _after(self, status: str) -> None:
@@ -810,7 +823,8 @@ class Train:
                              platform.name)
             self._step_state(platform, i, message=reason)
             return "warned"
-        message = f"step {step.name} {reason}" if timed_out else f"step {step.name} failed: {reason}"
+        stopped = timed_out or reason.startswith("stopped: ")
+        message = f"step {step.name} {reason}" if stopped else f"step {step.name} failed: {reason}"
         raise PlatformFailed(message, result.log or "", step_status="timed_out" if timed_out else "failed")
 
     def _rollback_with_connector(self, platform: Platform) -> CommandResult:

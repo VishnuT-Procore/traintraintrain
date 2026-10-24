@@ -101,7 +101,8 @@ class PostgresConnector(Connector):
                 conn.rollback()
         except psycopg.Error as e:
             first = str(e).strip().splitlines()[0] if str(e).strip() else type(e).__name__
-            return StepResult(False, {}, f"query on {self.name!r} failed: {first}")
+            return StepResult(False, {}, f"query on {self.name!r} failed: {first}",
+                              f"{type(e).__name__}: {str(e).strip()}")
         if row is None:
             return StepResult(True, {}, "the query returned no rows")
         metrics = {c: metric_value(v) for c, v in zip(columns, row)}

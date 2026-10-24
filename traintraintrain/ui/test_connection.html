@@ -6,96 +6,168 @@
 <title>Test connections · traintraintrain</title>
 <style>
 :root {
-  --bg: #f4f5f7; --surface: #ffffff; --surface-2: #f1f3f6; --border: #e1e4e9; --border-strong: #cdd2d9;
-  --ink: #15181c; --ink-2: #464f5c; --ink-3: #66707d; --accent: #2459d6; --accent-ink: #ffffff;
-  --good: #0f8a0f; --good-bg: #e8f5e8; --bad: #d03b3b; --bad-bg: #fbe7e7; --warn: #c98a00; --warn-bg: #fdf4dc;
-  --radius: 10px; color-scheme: light;
+  --bg: #f5f6f8; --surface: #ffffff; --surface-2: #f3f4f7; --border: #e3e6eb; --border-strong: #ccd2da;
+  --ink: #14171b; --ink-2: #444d59; --ink-3: #6b7480; --accent: #2459d6; --accent-ink: #ffffff;
+  --good: #12804a; --good-bg: #e6f4ec; --bad: #c8383a; --bad-bg: #fbeaea; --warn: #9a6400; --warn-bg: #fdf3dd;
+  --idle: #9aa3ae; --radius: 12px; --shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 1px 3px rgba(16, 24, 40, .06);
+  color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #111316; --surface: #191c20; --surface-2: #20242a; --border: #2b3037; --border-strong: #3a4049;
-    --ink: #e9ebee; --ink-2: #b6bcc5; --ink-3: #8f97a2; --accent: #6b9dff; --accent-ink: #0c0e11;
-    --good: #3fbf55; --good-bg: #16301d; --bad: #f06b6b; --bad-bg: #3b1c1c; --warn: #f0b429; --warn-bg: #352a10;
-    color-scheme: dark;
+    --bg: #0f1114; --surface: #171a1e; --surface-2: #1e2227; --border: #2a2f36; --border-strong: #3a414a;
+    --ink: #eceef1; --ink-2: #b9c0c9; --ink-3: #8c95a1; --accent: #6f9fff; --accent-ink: #0b0d10;
+    --good: #45c27a; --good-bg: #14301f; --bad: #f07070; --bad-bg: #3a1b1c; --warn: #f2b84b; --warn-bg: #352a12;
+    --idle: #5d6670; --shadow: none; color-scheme: dark;
   }
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink);
-  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
 button, input, select { font: inherit; color: inherit; }
-code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .86em; }
-a { color: var(--accent); }
-.topbar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; background: var(--surface);
-  border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-.topbar .name { font-weight: 700; }
-.topbar .muted { color: var(--ink-3); }
-.topbar .spacer { flex: 1; }
-main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 60px; }
-h1 { font-size: 24px; margin: 0 0 6px; letter-spacing: -.01em; }
-.lead { color: var(--ink-2); margin: 0 0 20px; }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; }
-.chead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
-.chead h2 { font-size: 17px; margin: 0; }
-.chead .settings { color: var(--ink-3); font-size: 12.5px; flex-basis: 100%; overflow-wrap: anywhere; }
-.chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 2px 8px;
-  border-radius: 999px; background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
-.chip.good { background: var(--good-bg); color: var(--good); }
-.chip.bad { background: var(--bad-bg); color: var(--bad); }
-.chip.warn { background: var(--warn-bg); color: var(--ink); }
-.btn { border: 1px solid var(--border-strong); background: var(--surface); padding: 6px 12px; border-radius: 8px;
-  cursor: pointer; font-weight: 600; font-size: 14px; }
+.mono, pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+code { font-size: .88em; background: var(--surface-2); padding: 1px 5px; border-radius: 5px; }
+
+.topbar { display: flex; align-items: center; gap: 10px; padding: 0 20px; height: 53px; background: var(--surface);
+  border-bottom: 1px solid var(--border); }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -.01em; }
+.brand .mark { width: 28px; height: 28px; border-radius: 7px; background: var(--ink); color: var(--surface);
+  display: grid; place-items: center; flex: none; }
+.brand .sep { color: var(--border-strong); font-weight: 400; }
+.brand .page { font-weight: 600; color: var(--ink-2); }
+.topbar .train { margin-left: auto; font-size: 13px; color: var(--ink-3); }
+.topbar .train b { color: var(--ink-2); font-weight: 600; }
+
+main { max-width: 980px; margin: 0 auto; padding: 32px 16px 72px; }
+.head { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.head h1 { font-size: 26px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -.02em; }
+.head p { margin: 0; color: var(--ink-3); max-width: 620px; }
+.head .actions { margin-left: auto; }
+
+.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 24px; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+.stat .n { font-size: 24px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.stat .l { font-size: 13px; color: var(--ink-3); display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 14px;
+  box-shadow: var(--shadow); overflow: hidden; }
+.chead { display: flex; align-items: center; gap: 14px; padding: 16px 18px; flex-wrap: wrap; }
+.logo { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; color: #fff;
+  font-weight: 800; font-size: 16px; flex: none; }
+.ctitle { min-width: 0; flex: 1 1 220px; }
+.ctitle h2 { font-size: 16px; margin: 0; line-height: 1.3; letter-spacing: -.005em; }
+.ctitle .sub { font-size: 13px; color: var(--ink-3); }
+.cactions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.status { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--ink-2);
+  padding: 4px 10px; border-radius: 999px; background: var(--surface-2); white-space: nowrap; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--idle); flex: none; }
+.status.good { background: var(--good-bg); color: var(--good); } .status.good .dot, .dot.good { background: var(--good); }
+.status.bad { background: var(--bad-bg); color: var(--bad); } .status.bad .dot, .dot.bad { background: var(--bad); }
+.status.warn { background: var(--warn-bg); color: var(--warn); } .status.warn .dot, .dot.warn { background: var(--warn); }
+.status.busy .dot { background: var(--accent); animation: pulse 1s infinite ease-in-out; }
+.status .time { font-weight: 500; opacity: .8; }
+@keyframes pulse { 50% { opacity: .3; } }
+
+.facts { display: flex; flex-wrap: wrap; gap: 6px 22px; padding: 12px 18px; border-top: 1px solid var(--border);
+  background: var(--surface-2); font-size: 13px; }
+.fact { display: flex; gap: 6px; align-items: baseline; min-width: 0; }
+.fact .k { color: var(--ink-3); }
+.fact .v { color: var(--ink); font-weight: 550; overflow-wrap: anywhere; }
+.fact .v.mono { font-size: 12.5px; }
+.fact .v.ok { color: var(--good); } .fact .v.missing { color: var(--warn); }
+
+.out:empty { display: none; }
+.out { padding: 14px 18px; border-top: 1px solid var(--border); }
+.msg { font-size: 14px; overflow-wrap: anywhere; }
+.msg.bad { color: var(--bad); font-weight: 550; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 18px; margin: 10px 0 0; font-size: 13px; }
+.kv dt { color: var(--ink-3); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+.kv dd { margin: 0; overflow-wrap: anywhere; }
+.log { margin-top: 12px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.log .bar { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: var(--surface-2);
+  font-size: 12px; font-weight: 650; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+.log pre { margin: 0; padding: 10px 12px; font-size: 12.5px; line-height: 1.55; white-space: pre-wrap; word-break: break-word;
+  max-height: 280px; overflow: auto; background: var(--surface); }
+.setup { padding: 14px 18px; border-top: 1px solid var(--border); font-size: 14px; color: var(--ink-2); }
+.setup ol { margin: 6px 0 0; padding-left: 20px; }
+
+.btn { border: 1px solid var(--border-strong); background: var(--surface); padding: 7px 14px; border-radius: 8px;
+  cursor: pointer; font-weight: 600; font-size: 14px; line-height: 1.2; white-space: nowrap; }
 .btn:hover { background: var(--surface-2); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.btn:disabled { opacity: .55; cursor: wait; }
-.ml { margin-left: auto; }
-.step { padding: 14px 16px; border-bottom: 1px solid var(--border); }
-.step:last-child { border-bottom: none; }
+.btn.primary:hover { filter: brightness(1.06); }
+.btn.small { padding: 3px 9px; font-size: 12px; text-transform: none; letter-spacing: 0; }
+.btn:disabled { opacity: .55; cursor: progress; }
+
+.steps > summary { list-style: none; cursor: pointer; padding: 11px 18px; border-top: 1px solid var(--border);
+  font-size: 13px; font-weight: 600; color: var(--ink-2); display: flex; align-items: center; gap: 8px; }
+.steps > summary::-webkit-details-marker { display: none; }
+.steps > summary::before { content: "›"; font-size: 16px; line-height: 1; transition: transform .15s; color: var(--ink-3); }
+.steps[open] > summary::before { transform: rotate(90deg); }
+.step { padding: 14px 18px; border-top: 1px solid var(--border); }
 .step .top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 .step .sname { font-weight: 650; }
-.step .where { color: var(--ink-3); font-size: 13px; }
-.rules { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
+.where { color: var(--ink-3); font-size: 13px; }
+.tag { font-size: 11.5px; font-weight: 650; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); }
+.tag.good { background: var(--good-bg); color: var(--good); } .tag.warn { background: var(--warn-bg); color: var(--warn); }
+.rules { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
 .rule { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; padding: 1px 7px;
   border-radius: 6px; background: var(--surface-2); color: var(--ink-2); }
 .controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; margin-top: 10px; }
 .controls label { display: flex; flex-direction: column; font-size: 12px; font-weight: 650; color: var(--ink-3); gap: 3px; }
-.controls input[type=text], .controls select { padding: 6px 9px; border: 1px solid var(--border-strong); border-radius: 7px;
-  background: var(--surface); min-width: 150px; font-size: 14px; color: var(--ink); }
+.controls input[type=text], .controls select { padding: 7px 10px; border: 1px solid var(--border-strong); border-radius: 8px;
+  background: var(--surface); min-width: 160px; font-size: 14px; color: var(--ink); }
 .controls .check { flex-direction: row; align-items: center; gap: 6px; font-weight: 600; color: var(--ink-2); font-size: 13px; }
-.result { margin-top: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); padding: 10px 12px; font-size: 14px; }
-.result.good { border-left: 4px solid var(--good); }
-.result.bad { border-left: 4px solid var(--bad); }
-.result.info { border-left: 4px solid var(--border-strong); }
-.result .msg { overflow-wrap: anywhere; }
-.result table { border-collapse: collapse; margin-top: 8px; width: 100%; font-size: 13px; }
-.result td { padding: 4px 8px 4px 0; vertical-align: top; overflow-wrap: anywhere; }
-.result td:first-child { color: var(--ink-3); width: 30%; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-.result details { margin-top: 8px; }
-.result pre { white-space: pre-wrap; word-break: break-word; max-height: 240px; overflow: auto; font-size: 12px;
-  background: var(--surface); padding: 8px; border-radius: 6px; margin: 6px 0 0; }
+.step .out { padding: 12px 0 0; border-top: none; }
 .ok { color: var(--good); font-weight: 650; } .no { color: var(--bad); font-weight: 650; }
-.empty { padding: 28px 16px; text-align: center; color: var(--ink-3); }
-.note { color: var(--ink-3); font-size: 13px; }
-@media (max-width: 640px) { .ml { margin-left: 0; } .controls input[type=text], .controls select { min-width: 0; width: 100%; } .controls label { width: 100%; } }
+.empty { padding: 40px 18px; text-align: center; color: var(--ink-3); }
+
+@media (max-width: 720px) {
+  .topbar { padding: 0 16px; } .topbar .train { display: none; }
+  .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .head .actions { margin-left: 0; width: 100%; } .head .actions .btn { width: 100%; }
+  .cactions { width: 100%; } .cactions .btn { flex: 1; }
+  .controls input[type=text], .controls select { min-width: 0; width: 100%; } .controls label { width: 100%; }
+}
 </style>
 </head>
 <body>
 <header class="topbar">
-  <span class="name">traintraintrain</span><span class="muted" id="trainName"></span>
-  <span class="spacer"></span>
-  <a href="/">← Departure board</a>
+  <span class="brand"><span class="mark" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="13" rx="3"/><path d="M5 10h14M9 20l-2 2M15 20l2 2M9 16v.01M15 16v.01"/></svg></span>traintraintrain<span class="sep">/</span><span class="page">Connections</span></span>
+  <span class="train" id="trainName"></span>
 </header>
 <main>
-  <h1>Test connections</h1>
-  <p class="lead">Check that each connector's credentials and network work, and try the calls your steps make,
-    without deploying anything. Steps that could change something (creating tickets, comments, HTTP POSTs,
-    commands) only run when you tick <strong>for real</strong>. Every test is recorded in the audit log.</p>
-  <div id="list"><div class="empty">Loading…</div></div>
+  <div class="head">
+    <div>
+      <h1>Test connections</h1>
+      <p>Check each service's credentials and network access. Nothing is deployed, and every check is recorded in the audit log.</p>
+    </div>
+    <div class="actions"><button class="btn primary" id="testAll" disabled>Test all</button></div>
+  </div>
+  <div class="summary" id="summary"></div>
+  <div id="list"><div class="card"><div class="empty">Loading…</div></div></div>
 </main>
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
                 set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+
+const TYPES = {
+  jira: { label: "Jira Service Management", mark: "J", color: "#1868db" },
+  databricks: { label: "Databricks", mark: "D", color: "#e5452a" },
+  slack: { label: "Slack", mark: "S", color: "#4a154b" },
+  postgres: { label: "PostgreSQL", mark: "P", color: "#336791" },
+  prometheus: { label: "Prometheus", mark: "P", color: "#d2502b" },
+  http: { label: "HTTP API", mark: "H", color: "#5b6573" },
+  driver: { label: "Driver", mark: "D", color: "#5b6573" },
+  command: { label: "Command", mark: "›_", color: "#5b6573" },
+};
+const KEYS = { url: "Site", host: "Workspace", warehouse_id: "SQL warehouse", email: "Email", api_token: "API token",
+  token: "Token", client_id: "Client ID", client_secret: "Client secret", base_url: "Base URL", headers: "Headers",
+  password: "Password", timeout: "Timeout" };
+const label = (k) => KEYS[k] || k.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+const typeInfo = (t) => TYPES[t] || { label: t, mark: (t || "?")[0].toUpperCase(), color: "#5b6573" };
 
 async function api(path, body) {
   const headers = { "X-Traintraintrain-User": store.get("dt-user") || "" };
@@ -114,86 +186,187 @@ async function api(path, body) {
     if (t) { store.set("dt-token", t.trim()); return api(path, body); }
     throw new Error("Authentication required");
   }
-  if (!res.ok) throw new Error(data.error || res.statusText);
+  if (!res.ok) {
+    const err = new Error(data.error || res.statusText || `HTTP ${res.status}`);
+    err.log = `request:  ${opts.method || "GET"} ${path}\nresponse: HTTP ${res.status}${data.error ? "" : "\n\n" + JSON.stringify(data)}`;
+    throw err;
+  }
   return data;
 }
 
-function resultHtml(r, kind) {
-  if (kind === "ping" && r.supported === false)
-    return `<div class="result info"><div class="msg">${esc(r.message)}</div></div>`;
-  const good = kind === "ping" ? r.ok : r.passed;
-  const head = kind === "ping"
-    ? `<span class="${good ? "ok" : "no"}">${good ? "Connected" : "Failed"}</span>`
-    : `<span class="${good ? "ok" : "no"}">${good ? "Step would pass" : "Step would fail"}</span>${
-        r.dry_run ? ` <span class="chip">dry run</span>` : ""} <span class="note">on ${esc(r.platform)}${r.version ? " · version " + esc(r.version) : ""}</span>`;
+// ---- status of each card (slack, c0, c1, ...) ---------------------------------------------
+let DATA = null;
+const STATE = {};   // key -> {status: idle|busy|good|bad|warn|info, text, at}
+
+function setStatus(key, status, text) {
+  STATE[key] = { status, text, at: ["good", "bad"].includes(status) ? new Date() : null };
+  const el = $(`st_${key}`);
+  if (el) el.outerHTML = statusHtml(key);
+  renderSummary();
+}
+function statusHtml(key) {
+  const s = STATE[key] || { status: "idle", text: "Not tested" };
+  const time = s.at ? ` <span class="time">· ${s.at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>` : "";
+  return `<span class="status ${s.status === "info" ? "" : s.status}" id="st_${key}"><span class="dot"></span>${esc(s.text)}${time}</span>`;
+}
+function renderSummary() {
+  const all = Object.values(STATE);
+  const n = (st) => all.filter((s) => s.status === st).length;
+  const tiles = [[all.length, "Connections", ""], [n("good"), "Connected", "good"], [n("bad"), "Failed", "bad"],
+    [n("warn"), "Setup needed", "warn"]];
+  $("summary").innerHTML = tiles.map(([v, l, tone]) =>
+    `<div class="stat"><div class="n">${v}</div><div class="l">${tone ? `<span class="dot ${tone}"></span>` : ""}${esc(l)}</div></div>`).join("");
+}
+
+// ---- results --------------------------------------------------------------------------
+function logHtml(log) {
+  if (!log) return "";
+  return `<div class="log"><div class="bar">Error log <button class="btn small copy" type="button">Copy</button></div><pre>${esc(log)}</pre></div>`;
+}
+function kvHtml(metrics) {
+  const rows = Object.entries(metrics || {}).filter(([, v]) => v !== null && v !== "");
+  return rows.length ? `<dl class="kv">${rows.map(([k, v]) =>
+    `<dt>${esc(k)}</dt><dd>${esc(typeof v === "string" ? v : JSON.stringify(v))}</dd>`).join("")}</dl>` : "";
+}
+const failureHtml = (message, log) => `<div class="msg bad">${esc(message)}</div>${logHtml(log)}`;
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest(".copy");
+  if (!b) return;
+  try { await navigator.clipboard.writeText(b.closest(".log").querySelector("pre").textContent); b.textContent = "Copied"; }
+  catch { b.textContent = "Select and copy"; }
+  setTimeout(() => (b.textContent = "Copy"), 1500);
+});
+
+function stepResultHtml(r) {
+  const head = r.passed ? `<span class="ok">Step would pass</span>`
+    : `<span class="no">${r.stopped ? "Step would stop the train" : "Step would fail"}</span>`;
+  const meta = `<span class="where"> on ${esc(r.platform)}${r.version ? " · version " + esc(r.version) : ""}${r.dry_run ? " · dry run" : ""}</span>`;
   const byMetric = Object.fromEntries((r.checks || []).map((c) => [c.metric, c]));
   const rows = Object.entries(r.metrics || {}).map(([k, v]) => {
     const c = byMetric[k];
-    return `<tr><td>${esc(k)}</td><td>${esc(typeof v === "string" ? v : JSON.stringify(v))}${
-      c ? ` <span class="${c.ok ? "ok" : "no"}">${c.ok ? "✓" : "✗"} ${esc(c.rule)}</span>` : ""}</td></tr>`;
+    return `<dt>${esc(k)}</dt><dd>${esc(typeof v === "string" ? v : JSON.stringify(v))}${
+      c ? ` <span class="${c.ok ? "ok" : "no"}">${c.ok ? "✓" : "✗"} ${esc(c.rule)}</span>` : ""}</dd>`;
   }).join("");
   const missing = (r.checks || []).filter((c) => !(c.metric in (r.metrics || {})))
-    .map((c) => `<tr><td>${esc(c.metric)}</td><td><span class="no">✗ ${esc(c.rule)}</span> <span class="note">${esc(c.why)}</span></td></tr>`).join("");
-  const log = r.log ? `<details><summary class="note">Raw reply / log</summary><pre>${esc(r.log)}</pre></details>` : "";
-  return `<div class="result ${good ? "good" : "bad"}">${head}<div class="msg">${esc(r.message)}</div>${
-    rows || missing ? `<table>${rows}${missing}</table>` : ""}${log}</div>`;
+    .map((c) => `<dt>${esc(c.metric)}</dt><dd><span class="no">✗ ${esc(c.rule)}</span> <span class="where">${esc(c.why)}</span></dd>`).join("");
+  const stop = r.stopped ? `<div class="msg bad">Stopped: ${esc(r.stopped)}</div>` : "";
+  const body = r.ok ? `<div class="msg">${esc(r.message)}</div>` : `<div class="msg bad">${esc(r.message)}</div>`;
+  return `<div>${head}${meta}</div>${body}${stop}${rows || missing ? `<dl class="kv">${rows}${missing}</dl>` : ""}${
+    r.ok ? "" : logHtml(r.log)}`;
 }
 
-function stepHtml(c, s, ci, si, platforms) {
+// ---- cards ----------------------------------------------------------------------------
+function factHtml(d) {
+  const k = `<span class="k">${esc(label(d.key))}</span>`;
+  if (!d.set) return `<span class="fact">${k}<span class="v missing">${d.missing ? `$${esc(d.missing)} not set` : "not set"}</span></span>`;
+  if (d.value !== null && d.value !== undefined) {
+    const v = String(d.value).replace(/^https?:\/\//, "");
+    return `<span class="fact">${k}<span class="v ${d.key.endsWith("_id") ? "mono" : ""}">${esc(v)}</span></span>`;
+  }
+  return `<span class="fact">${k}<span class="v ok">✓ set</span></span>`;
+}
+
+function cardHead(key, info, sub, actions) {
+  return `<div class="chead"><span class="logo" style="background:${info.color}">${esc(info.mark)}</span>
+    <div class="ctitle"><h2>${esc(info.label)}</h2><div class="sub">${sub}</div></div>
+    <div class="cactions">${statusHtml(key)}${actions}</div></div>`;
+}
+
+function slackCard(s) {
+  const ready = !!s.mode;
+  STATE.slack = STATE.slack || (ready ? { status: "idle", text: "Not tested" } : { status: "warn", text: "Setup needed" });
+  const sub = `notifications · ${s.mode === "bot" ? "bot token" : s.mode === "webhook" ? "incoming webhook" : "not set up"}`;
+  const actions = [s.mode === "bot" ? `<button class="btn" id="slackPing">Test connection</button>` : "",
+    ready ? `<button class="btn" id="slackSend">Send test message</button>` : ""].join("");
+  const facts = [
+    `<span class="fact"><span class="k">Channel</span><span class="v">${s.channel ? esc(s.channel) : "—"}</span></span>`,
+    `<span class="fact"><span class="k">Bot token</span><span class="v ${s.token_set ? "ok" : "missing"}">${s.token_set ? "✓ set" : `$${esc(s.token_env)} not set`}</span></span>`,
+    `<span class="fact"><span class="k">Webhook</span><span class="v ${s.webhook_set ? "ok" : ""}">${s.webhook_set ? "✓ set" : `$${esc(s.webhook_url_env)} not set`}</span></span>`,
+  ].join("");
+  const setup = ready ? "" : `<div class="setup">To check Slack, set one of these before starting the UI:
+    <ol><li><code>${esc(s.token_env)}</code>: a bot token (<code>xoxb-…</code>) with the <code>chat:write</code> scope, plus
+    <code>channel:</code> under <code>notifications.slack</code></li>
+    <li>or <code>${esc(s.webhook_url_env)}</code>: an incoming webhook URL</li></ol></div>`;
+  return `<section class="card">${cardHead("slack", typeInfo("slack"), sub, actions)}
+    <div class="facts">${facts}</div>${setup}<div class="out" id="out_slack"></div></section>`;
+}
+
+function stepHtml(c, s, ci, si) {
   const id = `s${ci}_${si}`;
-  const changes = !s.read_only;
   const driver = c.type === "driver";
-  const badges = [
-    s.read_only ? `<span class="chip good">read-only</span>` : `<span class="chip warn">${driver ? "dry run unless for real" : "changes things"}</span>`,
-    s.enabled === false ? `<span class="chip">disabled in train.yaml</span>` : "",
+  const tags = [
+    s.read_only ? `<span class="tag good">read-only</span>` : `<span class="tag warn">${driver ? "dry run unless for real" : "changes things"}</span>`,
+    s.enabled === false ? `<span class="tag">disabled in train.yaml</span>` : "",
   ].join("");
   const platformSel = s.where.startsWith("platforms") && s.platforms.length > 1
-    ? `<label>Platform<select id="${id}_p">${s.platforms.map((p) => `<option>${esc(p)}</option>`).join("")}</select></label>`
-    : "";
+    ? `<label>Platform<select id="${id}_p">${s.platforms.map((p) => `<option>${esc(p)}</option>`).join("")}</select></label>` : "";
   const needs = (s.needs || []).map((n, i) =>
     `<label>${esc(n)}<input type="text" id="${id}_n${i}" data-key="${esc(n)}" placeholder="from an earlier step" autocomplete="off"></label>`).join("");
+  const rules = [...s.expect.map((e) => `<span class="rule">${esc(e)}</span>`),
+    ...(s.stop_if || []).map((e) => `<span class="rule">stop if ${esc(e)}</span>`)].join("");
   return `<div class="step">
-    <div class="top"><span class="sname">${esc(s.name)}</span><span class="where">${esc(s.where)}</span>${badges}</div>
-    ${s.expect.length ? `<div class="rules">${s.expect.map((e) => `<span class="rule">${esc(e)}</span>`).join("")}</div>` : ""}
-    <div class="controls">
-      ${platformSel}
+    <div class="top"><span class="sname">${esc(s.name)}</span><span class="where">${esc(s.where)}</span>${tags}</div>
+    ${rules ? `<div class="rules">${rules}</div>` : ""}
+    <div class="controls">${platformSel}
       <label>Version<input type="text" id="${id}_v" placeholder="default: what's live" autocomplete="off"></label>
       ${needs}
-      ${changes || driver ? `<label class="check"><input type="checkbox" id="${id}_r"> for real</label>` : ""}
-      <button class="btn primary" data-run="${id}" data-c="${ci}" data-s="${si}">Run step</button>
+      ${!s.read_only || driver ? `<label class="check"><input type="checkbox" id="${id}_r"> for real</label>` : ""}
+      <button class="btn" data-run="${id}" data-c="${ci}" data-s="${si}">Run step</button>
     </div>
-    <div id="${id}_out"></div></div>`;
+    <div class="out" id="${id}_out"></div></div>`;
 }
 
-let DATA = null;
+function connectorCard(c, ci) {
+  const key = `c${ci}`;
+  const missing = (c.details || []).some((d) => !d.set);
+  STATE[key] = STATE[key] || (missing ? { status: "warn", text: "Setup needed" }
+    : c.can_ping ? { status: "idle", text: "Not tested" } : { status: "info", text: "No connection check" });
+  const action = c.can_ping ? `<button class="btn" data-ping="${ci}">Test connection</button>` : "";
+  const facts = (c.details || []).map(factHtml).join("");
+  const steps = c.steps.length ? `<details class="steps"><summary>Steps that use this connection (${c.steps.length})</summary>
+    ${c.steps.map((s, si) => stepHtml(c, s, ci, si)).join("")}</details>` : "";
+  return `<section class="card">${cardHead(key, typeInfo(c.type), `<span class="mono">${esc(c.name)}</span> in train.yaml`, action)}
+    ${facts ? `<div class="facts">${facts}</div>` : ""}<div class="out" id="out_${key}"></div>${steps}</section>`;
+}
+
 async function load() {
   try { DATA = await api("/api/connectors"); }
-  catch (e) { $("list").innerHTML = `<div class="card"><div class="empty">${esc(e.message)}</div></div>`; return; }
-  $("trainName").textContent = "· " + DATA.train;
+  catch (e) { $("list").innerHTML = `<div class="card"><div class="out">${failureHtml(e.message, e.log)}</div></div>`; return; }
+  $("trainName").innerHTML = `train <b>${esc(DATA.train)}</b>`;
   document.title = `Test connections · ${DATA.train}`;
-  if (!DATA.connectors.length) {
-    $("list").innerHTML = `<div class="card"><div class="empty">No connectors in this train's config. Add a
-      <code>connectors:</code> section; see docs/connectors.md.</div></div>`;
+  if (!DATA.connectors.length && !DATA.slack) {
+    $("list").innerHTML = `<div class="card"><div class="empty">No connections in this train's config. Add a
+      <code>connectors:</code> section or <code>notifications.slack</code>; see docs/connectors.md.</div></div>`;
+    renderSummary();
     return;
   }
-  $("list").innerHTML = DATA.connectors.map((c, ci) => `<section class="card">
-    <div class="chead"><h2>${esc(c.name)}</h2><span class="chip">${esc(c.type)}</span>
-      ${c.can_ping ? `<button class="btn ml" data-ping="${ci}">Test connection</button>` : `<span class="note ml">No connection check for this type: run a step</span>`}
-      <span class="settings mono">${esc(c.settings)}</span></div>
-    <div id="p${ci}_out" style="padding:0 16px"></div>
-    ${c.steps.length ? c.steps.map((s, si) => stepHtml(c, s, ci, si, DATA.platforms)).join("")
-      : `<div class="step note">No step uses this connector yet.</div>`}
-  </section>`).join("");
-  document.querySelectorAll("[data-ping]").forEach((b) => b.onclick = () => ping(b));
+  $("list").innerHTML = (DATA.slack ? slackCard(DATA.slack) : "") + DATA.connectors.map(connectorCard).join("");
+  renderSummary();
+  document.querySelectorAll("[data-ping]").forEach((b) => b.onclick = () => ping(+b.dataset.ping));
   document.querySelectorAll("[data-run]").forEach((b) => b.onclick = () => run(b));
+  if ($("slackPing")) $("slackPing").onclick = slackPing;
+  if ($("slackSend")) $("slackSend").onclick = slackSend;
+  $("testAll").disabled = !document.querySelector("[data-ping], #slackPing");
 }
 
-async function ping(btn) {
-  const c = DATA.connectors[+btn.dataset.ping], out = $(`p${btn.dataset.ping}_out`);
-  btn.disabled = true; out.innerHTML = `<div class="result info">Checking ${esc(c.name)}…</div>`;
-  try { out.innerHTML = resultHtml(await api("/api/connectors/ping", { connector: c.name }), "ping") + "<div style='height:12px'></div>"; }
-  catch (e) { out.innerHTML = `<div class="result bad">${esc(e.message)}</div>`; }
+// One check: show progress on the card, then the result (or the error log).
+async function check(key, btn, busyText, call, okText) {
+  const out = $(`out_${key}`);
+  btn.disabled = true; setStatus(key, "busy", busyText);
+  try {
+    const r = await call();
+    if (r.ok) { setStatus(key, "good", okText); out.innerHTML = `<div class="msg">${esc(r.message)}</div>${kvHtml(r.metrics)}`; }
+    else if (r.supported === false) { setStatus(key, "idle", "Not tested"); out.innerHTML = `<div class="msg">${esc(r.message)}</div>`; }
+    else { setStatus(key, "bad", "Failed"); out.innerHTML = failureHtml(r.message, r.log); }
+  } catch (e) { setStatus(key, "bad", "Failed"); out.innerHTML = failureHtml(e.message, e.log); }
   finally { btn.disabled = false; }
+}
+const ping = (ci) => check(`c${ci}`, document.querySelector(`[data-ping="${ci}"]`), "Checking…",
+  () => api("/api/connectors/ping", { connector: DATA.connectors[ci].name }), "Connected");
+const slackPing = () => check("slack", $("slackPing"), "Checking…", () => api("/api/slack/ping", {}), "Connected");
+function slackSend() {
+  if (!confirm(`Post a test message to ${DATA.slack.channel || "the webhook's channel"}?`)) return;
+  return check("slack", $("slackSend"), "Sending…", () => api("/api/slack/send", {}), "Message sent");
 }
 
 async function run(btn) {
@@ -203,15 +376,23 @@ async function run(btn) {
   const forReal = $(`${id}_r`) ? $(`${id}_r`).checked : false;
   if (forReal && !s.read_only && c.type !== "driver" &&
       !confirm(`Run "${s.name}" for real? It may change things in ${c.name} (${c.type}).`)) return;
-  btn.disabled = true; out.innerHTML = `<div class="result info">Running ${esc(s.name)}…</div>`;
+  btn.disabled = true; out.innerHTML = `<div class="msg">Running ${esc(s.name)}…</div>`;
   try {
     const r = await api("/api/connectors/test", { connector: c.name, step: s.name,
       platform: $(`${id}_p`) ? $(`${id}_p`).value : null, version: $(`${id}_v`).value.trim() || null,
       values, for_real: forReal });
-    out.innerHTML = resultHtml(r, "test");
-  } catch (e) { out.innerHTML = `<div class="result bad">${esc(e.message)}</div>`; }
+    out.innerHTML = stepResultHtml(r);
+  } catch (e) { out.innerHTML = failureHtml(e.message, e.log); }
   finally { btn.disabled = false; }
 }
+
+$("testAll").onclick = async () => {
+  $("testAll").disabled = true;
+  const jobs = [...document.querySelectorAll("[data-ping]")].map((b) => ping(+b.dataset.ping));
+  if ($("slackPing")) jobs.push(slackPing());
+  await Promise.allSettled(jobs);
+  $("testAll").disabled = false;
+};
 load();
 </script>
 </body>

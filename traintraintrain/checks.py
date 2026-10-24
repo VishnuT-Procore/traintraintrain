@@ -113,3 +113,14 @@ def check(rule: Rule, metrics: dict) -> CheckResult:
 
 def evaluate(rules: list[Rule], metrics: dict) -> list[CheckResult]:
     return [check(r, metrics) for r in rules]
+
+
+def stop_reason(rules: list[Rule], metrics: dict) -> str | None:
+    """A step's `stop_if` rules: why it should stop now (the first rule that matches), or None.
+
+    A missing metric never matches.
+    """
+    for r in rules:
+        if r.metric in metrics and check(r, metrics).ok:
+            return f"{r.metric} is {metrics[r.metric]!r} (stop_if: {r.text})"
+    return None

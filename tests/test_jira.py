@@ -218,6 +218,40 @@ def test_a_failed_before_step_stops_the_departure(tmp_path):
     assert runner.commands("ticket")[-1] == "ticket close CHG-7 failed"
 
 
+def test_a_declined_approval_stops_the_train_at_once(tmp_path):
+    approved = {**BEFORE[1], "stop_if": ["approval == 'declined'"]}
+    cfg = make(tmp_path, before=[BEFORE[0], approved], after=AFTER)
+    status, runner, clock = run(cfg, replies={"open": {"key": "CHG-7"},
+                                              "approval": [{"approval": "pending"}, {"approval": "declined"}]})
+    assert status == FAILED and runner.commands("deploy") == []
+    assert clock.now() - NOW < timedelta(hours=1)  # didn't wait out `until`
+    st = load_departure(cfg, "v2")
+    rec = st["departure_steps"]["before"][1]
+    assert rec["status"] == "failed" and rec["attempts"] == 2
+    assert rec["message"] == "stopped: approval is 'declined' (stop_if: approval == 'declined')"
+    assert any(e["message"].startswith("departure stopped before the first stop: step approved stopped: "
+                                       "approval is 'declined'") for e in st["events"])
+    assert runner.commands("ticket")[-1] == "ticket close CHG-7 failed"
+    # Resuming raises a new change request instead of asking about the declined one again.
+    clock = FakeClock(NOW)
+    runner2 = Runner(clock, replies={"open": {"key": "CHG-8"}, "approval": {"approval": "approved"}})
+    assert Train(cfg, "v2", runner=runner2, clock=clock).run() == SUCCEEDED
+    assert runner2.commands("ticket")[:2] == ["ticket open v2", "ticket approval CHG-8"]
+    assert runner2.commands("deploy")[0] == "deploy c1 v2 CHG-8"
+
+
+def test_stop_if_on_platform_steps(tmp_path):
+    steps = [{"name": "errors", "command": "ticket errors", "expect": ["rate < 1"], "stop_if": ["rate > 20"],
+              "until": "1h", "every": "10m"}, "deploy"]
+    cfg = make(tmp_path, steps=steps, rollback_scope="none")
+    status, runner, clock = run(cfg, replies={"errors": [{"rate": 5}, {"rate": 50}]})
+    assert status == FAILED and runner.commands("deploy") == [] and clock.now() - NOW < timedelta(hours=1)
+    st = load_departure(cfg, "v2")
+    assert "stopped: rate is 50 (stop_if: rate > 20)" in st["platforms"]["c1"]["message"]
+    with pytest.raises(config.ConfigError, match="stop_if"):
+        make(tmp_path, steps=[{**steps[0], "stop_if": ["rate >>> 1"]}, "deploy"])
+
+
 def test_resume_keeps_passed_before_steps(tmp_path):
     cfg = make(tmp_path, before=BEFORE, rollback_scope="none")
     status, runner, _ = run(cfg, replies={"open": {"key": "CHG-7"}, "approval": {"approval": "approved"}},

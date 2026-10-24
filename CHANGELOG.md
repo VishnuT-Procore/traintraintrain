@@ -7,6 +7,35 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Web UI polish:**
+  - A stopped departure (braked, timed out) shows one state and one next action
+    (*Resume journey*) instead of also asking to clear a signal.
+  - Phones: tables keep only the columns that matter, the activity list and version
+    history show the latest entries with *Show all*, and the departures list is a short
+    vertical list.
+  - Version history shows 10 rows (*Show all*), with a *Who* column instead of repeating the version.
+  - Held times read "1d 13h", the Journey tile's dates no longer wrap, and a stop whose
+    platforms share a timetable and dwell shows them once in its header.
+  - Your name is a button (with a dialog, asked the first time you act) instead of a text
+    box in the header.
+  - Aborted departures look different from neutral states.
+  - The connections page uses the same header and logo.
+  - The sidebar has a search box and *Show all departures*.
+- **A redesigned test connections page:** a card per service (Slack, Jira Service
+  Management, Databricks, ...) with its status and when it was checked, a summary and
+  **Test all**, and what each connection points at (site, workspace, warehouse) with
+  secrets only shown as set or not set, and missing env vars named.
+- **Error logs on the test connections page:** a failed check shows the request, the
+  HTTP status and the service's full reply (or the network error), with a Copy button.
+  Failed steps keep the same details in their log. The page is no longer linked from the
+  board; open `/test_connection.html` directly.
+- **Slack on the test connections page:** check the bot token (`auth.test`) and send a
+  test message from the browser. `examples/test-connections/train.yaml` sets up just the
+  connections (Slack, Databricks, Jira), no steps.
+- **`stop_if:` on steps:** rules that end a step at once, without waiting out `until`.
+  With `stop_if: ["approval == 'declined'"]`, a declined Jira approval stops the train
+  immediately; resuming raises a new change request. The test connections page shows
+  when a step would stop the train.
 - **Jira Service Management connector** (`type: jira`, Cloud or Data Center): `search`
   (JQL count, e.g. no open P1 incidents), `issue`, `approval`, `create` (a service desk
   request or a Jira issue), `transition` and `comment`.

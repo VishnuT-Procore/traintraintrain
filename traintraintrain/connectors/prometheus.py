@@ -26,7 +26,7 @@ import urllib.parse
 import urllib.request
 
 from ..timetable import parse_duration
-from . import Connector, ConnectorError, StepResult, render
+from . import Connector, ConnectorError, StepResult, error_log, render
 
 
 class PrometheusConnector(Connector):
@@ -63,14 +63,16 @@ class PrometheusConnector(Connector):
             with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=limit) as r:  # noqa: S310
                 data = json.loads(r.read())
         except urllib.error.HTTPError as e:
-            body = e.read().decode(errors="replace") if e.fp else ""
+            raw = body = e.read().decode(errors="replace") if e.fp else ""
             try:
                 body = json.loads(body).get("error", body)
             except ValueError:
                 pass
-            return StepResult(False, {}, f"prometheus returned HTTP {e.code}: {str(body)[:300]}")
+            return StepResult(False, {}, f"prometheus returned HTTP {e.code}: {str(body)[:300]}",
+                              error_log("GET", url, e.code, raw))
         except (urllib.error.URLError, OSError, ValueError) as e:
-            return StepResult(False, {}, f"prometheus query failed: {getattr(e, 'reason', e)}")
+            return StepResult(False, {}, f"prometheus query failed: {getattr(e, 'reason', e)}",
+                              error_log("GET", url, error=e))
         if data.get("status") != "success":
             return StepResult(False, {}, f"prometheus: {data.get('error') or data.get('status')}")
         kind, result = data["data"]["resultType"], data["data"]["result"]
