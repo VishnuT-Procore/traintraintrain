@@ -983,7 +983,6 @@ async function renderOverview() {
   main.innerHTML = `
     <div class="page-head"><h1>Timetable</h1>
       <div class="meta"><span>Rollback scope: ${esc(cfg.rollback_scope)}</span><span>Slack: ${cfg.slack ? "on" : "off"}</span>
-        ${cfg.connectors ? `<span><a href="test_connection.html">Test connections</a> (${cfg.connectors})</span>` : ""}
         <span>Times in your timezone unless marked</span></div></div>
     <div class="tiles">
       <div class="tile"><div class="label">In service now</div>

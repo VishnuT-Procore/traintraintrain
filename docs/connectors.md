@@ -337,8 +337,8 @@ step uses this type.
 ## Checking connectors
 
 **In the browser:** open **`/test_connection.html`** on the web UI (e.g.
-http://127.0.0.1:8080/test_connection.html, also linked from the Timetable page). For
-each connector:
+http://127.0.0.1:8080/test_connection.html; it isn't linked from the board). For each
+connector:
 - **Test connection** checks the credentials and network, read-only: who you're signed
   in as for Jira and Databricks (and the warehouse's state), user and server version for
   Postgres, whether Prometheus answers queries, whether an HTTP base URL is reachable.
@@ -346,6 +346,9 @@ each connector:
   shows the metrics and which `expect` rules pass. You can pick the platform and version,
   and fill in values from earlier steps, e.g. `change.key` = `CHG-42` to try the Jira
   approval check on a real ticket.
+- **When something fails,** the result shows an **Error log**: the request (method and
+  URL, without credentials or query strings), the HTTP status and the service's full
+  reply, or the network error. **Copy** puts it on the clipboard to share.
 - **Slack** (from `notifications.slack`) gets a card too: which env vars are set (bot
   token or incoming webhook), **Test connection** (Slack's `auth.test`: the workspace and
   bot the token belongs to; bot tokens only) and **Send test message** (posts one message

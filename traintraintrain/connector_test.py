@@ -12,8 +12,10 @@ Steps that may change things (creating tickets, HTTP POSTs, commands) only run w
 from __future__ import annotations
 
 import getpass
+import json
 import os
 import re
+import traceback
 import urllib.error
 from datetime import timedelta
 
@@ -87,15 +89,15 @@ def ping(cfg, name: str) -> dict:
     try:
         result = connector.ping(ctx, TEST_TIMEOUT)
     except connectors.ConnectorError as e:
-        result = connectors.StepResult(False, {}, str(e))
+        result = connectors.StepResult(False, {}, str(e), e.log)
     except Exception as e:  # noqa: BLE001 - report, never crash the UI
-        result = connectors.StepResult(False, {}, f"{type(e).__name__}: {e}")
+        result = connectors.StepResult(False, {}, f"{type(e).__name__}: {e}", traceback.format_exc())
     if result is None:
         return {"connector": name, "type": connector.type_name, "supported": False, "ok": None,
                 "message": f"{connector.type_name} connectors have no connection check; test one of their steps",
                 "metrics": {}}
     return {"connector": name, "type": connector.type_name, "supported": True, "ok": result.ok,
-            "message": result.message, "metrics": result.metrics}
+            "message": result.message, "metrics": result.metrics, "log": result.log}
 
 
 def parse_values(pairs) -> dict:
@@ -176,15 +178,19 @@ def _slack(cfg):
     return view, cfg.slack, None
 
 
-def _slack_post(settings, url: str, payload: dict, headers: dict, post) -> dict:
+def _slack_post(settings, url: str, payload: dict, headers: dict, post) -> tuple[dict, str]:
+    """(Slack's reply, the error log when it failed). The log never shows a webhook's secret path."""
+    shown = url if url.startswith(notify.SLACK_API) else url.split("/services/")[0] + "/services/•••"
     try:
-        if post:
-            return post(url, payload, headers)
-        return notify.http_post(url, payload, headers, settings.timeout)
+        r = post(url, payload, headers) if post else notify.http_post(url, payload, headers, settings.timeout)
     except urllib.error.HTTPError as e:
-        return {"ok": False, "error": f"HTTP {e.code}"}
+        body = e.read().decode(errors="replace") if e.fp else ""
+        return {"ok": False, "error": f"HTTP {e.code}"}, connectors.error_log("POST", shown, e.code, body)
     except (urllib.error.URLError, OSError) as e:
-        return {"ok": False, "error": f"can't reach Slack: {getattr(e, 'reason', e)}"}
+        return ({"ok": False, "error": f"can't reach Slack: {getattr(e, 'reason', e)}"},
+                connectors.error_log("POST", shown, error=e))
+    log = "" if r.get("ok") else connectors.error_log("POST", shown, 200, json.dumps(r, indent=2))
+    return r, log
 
 
 def slack_ping(cfg, post=None) -> dict:
@@ -197,9 +203,9 @@ def slack_ping(cfg, post=None) -> dict:
         return {**out, "supported": False, "ok": None,
                 "message": "an incoming webhook can only be checked by posting to it: use Send test message"}
     token = os.environ[settings.token_env]
-    r = _slack_post(settings, notify.SLACK_API + "auth.test", {}, {"Authorization": f"Bearer {token}"}, post)
+    r, log = _slack_post(settings, notify.SLACK_API + "auth.test", {}, {"Authorization": f"Bearer {token}"}, post)
     if not r.get("ok"):
-        return {**out, "ok": False, "message": f"Slack auth.test failed: {r.get('error', r)}"}
+        return {**out, "ok": False, "message": f"Slack auth.test failed: {r.get('error', r)}", "log": log}
     metrics = {"team": r.get("team"), "user": r.get("user"), "channel": settings.channel}
     return {**out, "ok": True, "metrics": metrics,
             "message": f"signed in to {r.get('team')} as {r.get('user')}; messages go to {settings.channel}"}
@@ -215,13 +221,14 @@ def slack_send(cfg, user: str | None = None, post=None) -> dict:
             f"sent by {user or getpass.getuser()} from the test connections page")
     if view["mode"] == "bot":
         token = os.environ[settings.token_env]
-        r = _slack_post(settings, notify.SLACK_API + "chat.postMessage", {"channel": settings.channel, "text": text},
-                        {"Authorization": f"Bearer {token}"}, post)
+        r, log = _slack_post(settings, notify.SLACK_API + "chat.postMessage",
+                             {"channel": settings.channel, "text": text}, {"Authorization": f"Bearer {token}"}, post)
         where = settings.channel
     else:
-        r = _slack_post(settings, os.environ[settings.webhook_url_env], {"text": text}, {}, post)
+        r, log = _slack_post(settings, os.environ[settings.webhook_url_env], {"text": text}, {}, post)
         where = "the incoming webhook's channel"
     if not r.get("ok"):
-        return {**out, "ok": False, "message": f"Slack didn't take the message: {r.get('error') or r.get('raw') or r}"}
+        return {**out, "ok": False, "log": log,
+                "message": f"Slack didn't take the message: {r.get('error') or r.get('raw') or r}"}
     return {**out, "ok": True, "metrics": {k: r[k] for k in ("channel", "ts") if r.get(k)},
             "message": f"sent a test message to {where}"}

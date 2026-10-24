@@ -70,6 +70,8 @@ h1 { font-size: 24px; margin: 0 0 6px; letter-spacing: -.01em; }
 .result td { padding: 4px 8px 4px 0; vertical-align: top; overflow-wrap: anywhere; }
 .result td:first-child { color: var(--ink-3); width: 30%; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 .result details { margin-top: 8px; }
+.errlog summary { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.btn.copy { padding: 1px 8px; font-size: 12px; }
 .result pre { white-space: pre-wrap; word-break: break-word; max-height: 240px; overflow: auto; font-size: 12px;
   background: var(--surface); padding: 8px; border-radius: 6px; margin: 6px 0 0; }
 .ok { color: var(--good); font-weight: 650; } .no { color: var(--bad); font-weight: 650; }
@@ -114,9 +116,30 @@ async function api(path, body) {
     if (t) { store.set("dt-token", t.trim()); return api(path, body); }
     throw new Error("Authentication required");
   }
-  if (!res.ok) throw new Error(data.error || res.statusText);
+  if (!res.ok) {
+    const err = new Error(data.error || res.statusText || `HTTP ${res.status}`);
+    err.log = `request:  ${opts.method || "GET"} ${path}\nresponse: HTTP ${res.status}${data.error ? "" : "\n\n" + JSON.stringify(data)}`;
+    throw err;
+  }
   return data;
 }
+
+// A failure's full error log, open, with a Copy button for sharing.
+function errorLog(message, log) {
+  const text = [message, log].filter(Boolean).join("\n\n");
+  return `<details class="errlog" open><summary class="note">Error log <button class="btn copy" type="button">Copy</button></summary><pre>${esc(text)}</pre></details>`;
+}
+function failure(message, log) {
+  return `<div class="result bad"><span class="no">Failed</span><div class="msg">${esc(message)}</div>${errorLog(message, log)}</div>`;
+}
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest(".copy");
+  if (!b) return;
+  e.preventDefault();
+  try { await navigator.clipboard.writeText(b.closest("details").querySelector("pre").textContent); b.textContent = "Copied"; }
+  catch { b.textContent = "Select and copy"; }
+  setTimeout(() => (b.textContent = "Copy"), 1500);
+});
 
 function resultHtml(r, kind) {
   if (kind === "ping" && r.supported === false)
@@ -134,7 +157,8 @@ function resultHtml(r, kind) {
   }).join("");
   const missing = (r.checks || []).filter((c) => !(c.metric in (r.metrics || {})))
     .map((c) => `<tr><td>${esc(c.metric)}</td><td><span class="no">✗ ${esc(c.rule)}</span> <span class="note">${esc(c.why)}</span></td></tr>`).join("");
-  const log = r.log ? `<details><summary class="note">Raw reply / log</summary><pre>${esc(r.log)}</pre></details>` : "";
+  const failed = kind === "ping" ? !r.ok : !r.ok;
+  const log = failed ? errorLog(r.message, r.log) : r.log ? `<details><summary class="note">Raw reply / log</summary><pre>${esc(r.log)}</pre></details>` : "";
   const stop = r.stopped ? `<div class="msg no">Stopped: ${esc(r.stopped)}</div>` : "";
   return `<div class="result ${good ? "good" : "bad"}">${head}<div class="msg">${esc(r.message)}</div>${stop}${
     rows || missing ? `<table>${rows}${missing}</table>` : ""}${log}</div>`;
@@ -192,10 +216,10 @@ async function slack(action, btn) {
   try {
     const r = await api(`/api/slack/${action}`, {});
     const html = action === "send"
-      ? `<div class="result ${r.ok ? "good" : "bad"}"><span class="${r.ok ? "ok" : "no"}">${r.ok ? "Sent" : "Failed"}</span><div class="msg">${esc(r.message)}</div></div>`
+      ? (r.ok ? `<div class="result good"><span class="ok">Sent</span><div class="msg">${esc(r.message)}</div></div>` : failure(r.message, r.log))
       : resultHtml(r, "ping");
     out.innerHTML = html + "<div style='height:12px'></div>";
-  } catch (e) { out.innerHTML = `<div class="result bad">${esc(e.message)}</div>`; }
+  } catch (e) { out.innerHTML = failure(e.message, e.log) + "<div style='height:12px'></div>"; }
   finally { btn.disabled = false; }
 }
 
@@ -227,7 +251,7 @@ async function ping(btn) {
   const c = DATA.connectors[+btn.dataset.ping], out = $(`p${btn.dataset.ping}_out`);
   btn.disabled = true; out.innerHTML = `<div class="result info">Checking ${esc(c.name)}…</div>`;
   try { out.innerHTML = resultHtml(await api("/api/connectors/ping", { connector: c.name }), "ping") + "<div style='height:12px'></div>"; }
-  catch (e) { out.innerHTML = `<div class="result bad">${esc(e.message)}</div>`; }
+  catch (e) { out.innerHTML = failure(e.message, e.log) + "<div style='height:12px'></div>"; }
   finally { btn.disabled = false; }
 }
 
@@ -244,7 +268,7 @@ async function run(btn) {
       platform: $(`${id}_p`) ? $(`${id}_p`).value : null, version: $(`${id}_v`).value.trim() || null,
       values, for_real: forReal });
     out.innerHTML = resultHtml(r, "test");
-  } catch (e) { out.innerHTML = `<div class="result bad">${esc(e.message)}</div>`; }
+  } catch (e) { out.innerHTML = failure(e.message, e.log); }
   finally { btn.disabled = false; }
 }
 load();

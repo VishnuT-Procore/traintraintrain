@@ -96,7 +96,7 @@ def test_the_page_lists_connectors_and_their_steps(ui):
 
 
 def test_test_connection(ui):
-    base, _, _ = ui
+    base, _, services = ui
     code, r = call(base, "/api/connectors/ping", {"connector": "jira"})
     assert code == 200 and r["ok"] and r["metrics"]["user"] == "Vishnu"
     code, r = call(base, "/api/connectors/ping", {"connector": "lake"})
@@ -104,6 +104,12 @@ def test_test_connection(ui):
     code, r = call(base, "/api/connectors/ping", {"connector": "script"})
     assert code == 200 and r["supported"] is False
     assert call(base, "/api/connectors/ping", {"connector": "nope"})[0] == 400
+    # A failure carries the full error log: request, status and the service's reply.
+    services.routes[("GET", "/rest/api/2/myself")] = lambda q: (401, {"errorMessages": ["Bad token"], "hint": "x"})
+    code, r = call(base, "/api/connectors/ping", {"connector": "jira"})
+    assert not r["ok"] and r["message"] == "jira GET /rest/api/2/myself returned HTTP 401: Bad token"
+    assert r["log"].startswith(f"request:  GET {services.url}/rest/api/2/myself\nresponse: HTTP 401\n\n")
+    assert '"hint": "x"' in r["log"] and "pat" not in r["log"]
 
 
 def test_running_steps(ui):
@@ -175,7 +181,8 @@ def test_slack_bot_token(tmp_path, services, monkeypatch):
         assert sent["channel"] == "#deploys" and "sent by vishnu" in sent["text"]
         assert any(e["action"] == "slack_test_message" for e in app.backend.audit_entries("cde", "connectors"))
         services.routes[("POST", "/api/auth.test")] = lambda q: (200, {"ok": False, "error": "invalid_auth"})
-        assert call(base, "/api/slack/ping", {})[1]["message"] == "Slack auth.test failed: invalid_auth"
+        r = call(base, "/api/slack/ping", {})[1]
+        assert r["message"] == "Slack auth.test failed: invalid_auth" and '"error": "invalid_auth"' in r["log"]
     finally:
         httpd.shutdown()
 
@@ -187,6 +194,11 @@ def test_slack_webhook_and_not_set_up(tmp_path, services, monkeypatch):
     base, _, httpd = slack_ui(tmp_path, services, monkeypatch, {})
     try:
         assert call(base, "/api/slack/ping", {})[1]["supported"] is False
+        monkeypatch.setenv("SLACK_WEBHOOK_URL", services.url + "/services/T1/B2/secret")
+        services.routes[("POST", "/services/T1/B2/secret")] = lambda q: (404, b"no_service")
+        r = call(base, "/api/slack/send", {})[1]
+        assert not r["ok"] and "HTTP 404" in r["log"] and "secret" not in r["log"] and "no_service" in r["log"]
+        monkeypatch.setenv("SLACK_WEBHOOK_URL", services.url + "/hook")
         r = call(base, "/api/slack/send", {})[1]
         assert r["ok"] and r["message"] == "sent a test message to the incoming webhook's channel"
         monkeypatch.delenv("SLACK_WEBHOOK_URL")

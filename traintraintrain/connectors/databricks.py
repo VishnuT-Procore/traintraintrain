@@ -43,7 +43,7 @@ import urllib.parse
 import urllib.request
 
 from ..timetable import parse_duration
-from . import Connector, ConnectorError, StepResult, render
+from . import Connector, ConnectorError, StepResult, error_log, render
 
 _BIND = re.compile(r"(?<![:\w]):([A-Za-z_][A-Za-z0-9_]*)\b")
 _INT_TYPES = {"BYTE", "SHORT", "INT", "LONG", "BIGINT", "TINYINT", "SMALLINT", "INTEGER"}
@@ -115,8 +115,16 @@ class DatabricksConnector(Connector):
         basic = base64.b64encode(f"{self.setting('client_id')}:{self.setting('client_secret')}".encode()).decode()
         req = urllib.request.Request(f"{self._host()}/oidc/v1/token", data=body, method="POST", headers={
             "Authorization": f"Basic {basic}", "Content-Type": "application/x-www-form-urlencoded"})
-        with urllib.request.urlopen(req, timeout=30) as r:  # noqa: S310 - https host, checked
-            data = json.loads(r.read())
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:  # noqa: S310 - https host, checked
+                data = json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            raw = e.read().decode(errors="replace") if e.fp else ""
+            raise ConnectorError(f"databricks OAuth (client_id/client_secret) returned HTTP {e.code}",
+                                 error_log("POST", req.full_url, e.code, raw)) from None
+        except (urllib.error.URLError, OSError) as e:
+            raise ConnectorError(f"can't reach databricks: {getattr(e, 'reason', e)}",
+                                 error_log("POST", req.full_url, error=e)) from None
         self._oauth = (data["access_token"], time.time() + float(data.get("expires_in", 3600)))
         return self._oauth[0]
 
@@ -138,9 +146,10 @@ class DatabricksConnector(Connector):
             except ValueError:
                 detail = raw
             raise ConnectorError(f"databricks {method} {path.split('?')[0]} returned HTTP {e.code}: "
-                                 f"{str(detail)[:300]}") from None
+                                 f"{str(detail)[:300]}", error_log(method, req.full_url, e.code, raw)) from None
         except (urllib.error.URLError, OSError) as e:
-            raise ConnectorError(f"can't reach databricks: {getattr(e, 'reason', e)}") from None
+            raise ConnectorError(f"can't reach databricks: {getattr(e, 'reason', e)}",
+                                 error_log(method, req.full_url, error=e)) from None
 
     def ping(self, ctx, timeout):
         me = self._api("GET", "/api/2.0/preview/scim/v2/Me", timeout=timeout.total_seconds())

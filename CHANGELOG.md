@@ -7,6 +7,10 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- **Error logs on the test connections page:** a failed check shows the request, the
+  HTTP status and the service's full reply (or the network error), with a Copy button.
+  Failed steps keep the same details in their log. The page is no longer linked from the
+  board; open `/test_connection.html` directly.
 - **Slack on the test connections page:** check the bot token (`auth.test`) and send a
   test message from the browser. `examples/test-connections/train.yaml` sets up just the
   connections (Slack, Databricks, Jira), no steps.

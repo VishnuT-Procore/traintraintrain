@@ -18,6 +18,9 @@ databricks, jira, driver and command. More types can be added by installing a pa
 """
 from __future__ import annotations
 
+import traceback
+import urllib.parse
+
 import os
 import re
 from dataclasses import dataclass, field
@@ -33,7 +36,27 @@ _PLACEHOLDER = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_\-]+)*)\}")
 
 
 class ConnectorError(ValueError):
-    """A connector or step is configured wrongly (raised while loading the config)."""
+    """A connector or step is configured wrongly, or a call failed. `log`: the full details."""
+
+    def __init__(self, message: str = "", log: str = ""):
+        super().__init__(message)
+        self.log = log
+
+
+def error_log(method: str, url: str, status: int | None = None, body: str = "", error=None) -> str:
+    """The details of a failed HTTP call, for the test page and step logs (no credentials)."""
+    p = urllib.parse.urlsplit(url)
+    shown = urllib.parse.urlunsplit((p.scheme, p.hostname + (f":{p.port}" if p.port else "") if p.hostname else "",
+                                     p.path, "", ""))
+    lines = [f"request:  {method} {shown}"]
+    if status is not None:
+        lines.append(f"response: HTTP {status}")
+    if error is not None:
+        reason = getattr(error, "reason", error)
+        lines.append(f"error:    {type(reason).__name__}: {reason}")
+    if body:
+        lines += ["", body[:8000]]
+    return "\n".join(lines)
 
 
 @dataclass
@@ -171,10 +194,10 @@ class Connector:
         try:
             result = self.call(step, ctx, timeout)
         except ConnectorError as e:
-            return StepResult(False, {}, str(e))
+            return StepResult(False, {}, str(e), e.log)
         except Exception as e:  # noqa: BLE001 - a connector bug must not crash the train
             return StepResult(False, {}, f"{self.type_name} connector {self.name!r} failed: "
-                                         f"{type(e).__name__}: {e}")
+                                         f"{type(e).__name__}: {e}", traceback.format_exc())
         if not isinstance(result, StepResult):
             return StepResult(False, {}, f"connector {self.name!r} returned {type(result).__name__}, not a StepResult")
         return result
