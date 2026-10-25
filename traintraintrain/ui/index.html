@@ -280,6 +280,9 @@ pre.log { background: var(--log-bg); color: var(--log-ink); padding: 18px 20px; 
 .empty { padding: 32px 20px; text-align: center; color: var(--ink-3); }
 .mobile-only { display: none !important; }
 .more { padding: 12px 20px; border-top: 1px solid var(--border); text-align: center; }
+.shipping .more { display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: left; }
+.shipping .more:empty { display: none; }
+.section-title .muted { font-weight: 400; }
 
 /* ---- dialogs + toasts ---------------------------------------------------- */
 dialog { border: 0; border-radius: 24px; padding: 0; background: var(--surface); color: var(--ink);
@@ -949,6 +952,18 @@ function unifiedChanges(groups, version) {
     ? `${lines.length} change${lines.length === 1 ? "" : "s"}${partial ? ` · ${partial} only reach some platforms` : ""}` : "";
   return { html: body + (notes.length ? `<div class="cl-foot">${notes.join("")}</div>` : ""), summary, count: lines.length };
 }
+// A short "what's shipping" preview near the top, so the changes aren't hidden in a tab.
+function renderShipping(dep) {
+  if (!dep.changes) return "";
+  const lines = changeLines(dep);
+  if (!lines.length) return "";
+  const n = lines.length, url = dep.changes.url;
+  return `<div class="section-title">What's shipping<span class="muted">${n} change${n === 1 ? "" : "s"}${
+      dep.previous_version ? ` since <code>${esc(dep.previous_version)}</code>` : ""}</span></div>
+    <div class="card shipping">${commitRows(lines.slice(0, 3))}
+      <div class="more">${n > 3 ? `<button type="button" class="btn small" id="shipAll">See all ${n} changes</button>` : ""}${
+        url ? `<a class="link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${icon("external", 12)}Compare</a>` : ""}</div></div>`;
+}
 function renderChanges(dep) {
   const ch = dep.changes || {};
   const groups = ch.groups && ch.groups.length ? ch.groups
@@ -1051,6 +1066,7 @@ function renderDeparture() {
         ${dep.changes && dep.changes.url ? `<a class="link" href="${esc(dep.changes.url)}" target="_blank" rel="noopener noreferrer">${icon("external", 13)}What's in this release</a>` : ""}</div>
     </div>
     ${callout}${tiles}
+    ${renderShipping(dep)}
     ${renderDepartureSteps(dep)}
     ${dep.platforms ? `<div class="section-title">Route</div>${renderRoute(dep)}${renderStops(dep)}` : ""}
     <div class="tabs" role="tablist">
@@ -1068,6 +1084,8 @@ function renderDeparture() {
       : t === "actions" ? renderActions(dep) : t === "changes" ? renderChanges(dep) : renderEvents(dep)}</div>`;
 
   main.querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => { S.tab = b.dataset.tab; renderDeparture(); });
+  const sa = $("shipAll");
+  if (sa) sa.onclick = () => { S.tab = "changes"; renderDeparture(); main.querySelector(".tabs")?.scrollIntoView({ behavior: "smooth", block: "start" }); };
   main.querySelectorAll("[data-filter]").forEach((b) => b.onclick = () => { S.evFilter = b.dataset.filter; renderDeparture(); });
   main.querySelectorAll("[data-act]").forEach((b) => b.onclick = () => doAction(b.dataset.act));
   main.querySelectorAll("[data-jump]").forEach((b) => b.onclick = () =>
