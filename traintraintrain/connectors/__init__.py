@@ -100,17 +100,18 @@ class Context:
         return out
 
 
-def render(template, ctx: Context, quote=None):
+def render(template, ctx: Context, quote=None, values: dict[str, str] | None = None):
     """Fill {placeholders} in a string, or in every string inside a dict/list.
 
     Unknown names are left as they are, so `{region="us"}` in a PromQL query survives.
-    `quote` (e.g. urllib.parse.quote) is applied to each substituted value.
+    `quote` (e.g. urllib.parse.quote) is applied to each substituted value. `values`
+    replaces `ctx.values()` (e.g. already shell-quoted ones).
     """
-    values = ctx.values()
+    values = ctx.values() if values is None else values
     if isinstance(template, dict):
-        return {k: render(v, ctx, quote) for k, v in template.items()}
+        return {k: render(v, ctx, quote, values) for k, v in template.items()}
     if isinstance(template, list):
-        return [render(v, ctx, quote) for v in template]
+        return [render(v, ctx, quote, values) for v in template]
     if not isinstance(template, str):
         return template
 

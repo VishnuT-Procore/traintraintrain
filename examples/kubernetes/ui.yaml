@@ -12,6 +12,8 @@ metadata:
   name: traintraintrain
 stringData:
   TRAINTRAINTRAIN_UI_TOKEN: change-me
+  # Behind an SSO proxy (oauth2-proxy, IAP) that sets X-Forwarded-User, use its user names:
+  # TRAINTRAINTRAIN_TRUST_PROXY_HEADERS: "true"
   # Keep state in Postgres instead of the PersistentVolumeClaim below (e.g. RDS, Cloud SQL):
   # TRAINTRAINTRAIN_DATABASE_URL: postgresql://USER:PASSWORD@HOST:5432/traintraintrain?sslmode=require
   # SLACK_BOT_TOKEN: xoxb-...

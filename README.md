@@ -15,6 +15,11 @@ of regions, each only during its own service hours. You bring the deploy command
 APIs); it decides *when* and *where* to run them, checks each region, and rolls back on
 failure.
 
+New to the train words? A **stop** is a group of regions (**platforms**) deployed together,
+a **timetable** is their service hours, **dwell** is the watch period after a deploy, and a
+**signal** is a manual approval gate. The full list is in the
+[vocabulary](https://github.com/VishnuT-Procore/traintraintrain/blob/main/docs/configuration.md#vocabulary).
+
 ![The traintraintrain web UI: a release on its route](https://raw.githubusercontent.com/VishnuT-Procore/traintraintrain/main/docs/screenshot.png)
 
 ## Install
@@ -86,6 +91,22 @@ A fuller one is in [`examples/train.yaml`](https://github.com/VishnuT-Procore/tr
   [Storage](https://github.com/VishnuT-Procore/traintraintrain/blob/main/docs/storage.md)
 - **Runs anywhere:** a CLI, a container image, Kubernetes or a CI job.
   [Running it](https://github.com/VishnuT-Procore/traintraintrain/blob/main/docs/deployment.md)
+
+## Security at a glance
+
+- **Commands run in a shell**, so treat `train.yaml` like code and review changes to it.
+  Versions, SHAs and values returned by earlier steps are shell-quoted when they're filled
+  into a command; platform `vars` go in as written.
+- **The web UI listens on `127.0.0.1`** by default. Anyone who can reach it can dispatch
+  trains and pull the brake. To share it, either:
+  - put it behind an SSO proxy and set `TRAINTRAINTRAIN_TRUST_PROXY_HEADERS=true` so the
+    proxy's user names are recorded, or
+  - set `TRAINTRAINTRAIN_UI_TOKEN` to require a shared token (users then type their own
+    name).
+- Keep credentials in environment variables; the config only names them.
+
+More in [SECURITY.md](https://github.com/VishnuT-Procore/traintraintrain/blob/main/SECURITY.md),
+which is also how to report a vulnerability privately.
 
 ## Docs
 

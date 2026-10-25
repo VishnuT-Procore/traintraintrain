@@ -26,5 +26,9 @@ Only the latest release receives security fixes while the project is at 0.x.
   the variables (`token_env`, `webhook_url_env`).
 - Command templates in `train.yaml` are executed by a shell. Treat the config file as code:
   review changes to it and limit who can edit it.
-- Platform `vars` and versions are substituted into shell commands. Versions entered in the
-  web UI are restricted to `[A-Za-z0-9._+-]`, but quote variables in your scripts anyway.
+- Versions, SHAs and step results (values from APIs and command output) are shell-quoted
+  when they're filled into commands. Platform `vars` come from the config and go in as
+  written. Your scripts should still quote their own variables.
+- `X-Forwarded-User` and similar headers are only believed when
+  `TRAINTRAINTRAIN_TRUST_PROXY_HEADERS=true`. Set it only when an authenticating proxy is the
+  only way to reach the UI and it overwrites those headers.
