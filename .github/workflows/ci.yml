@@ -81,8 +81,15 @@ jobs:
       - run: pip install build twine
       - run: python -m build
       - run: twine check --strict dist/*
-      - name: Wheel contains the web UI
-        run: unzip -l dist/*.whl | grep -q "traintraintrain/ui/index.html"
+      - name: Wheel contains the web UI and the typing marker
+        run: |
+          unzip -l dist/*.whl | grep -q "traintraintrain/ui/index.html"
+          unzip -l dist/*.whl | grep -q "traintraintrain/py.typed"
+      - name: Sdist contains the tests, docs and license
+        run: |
+          tar tzf dist/*.tar.gz | grep -q "/tests/test_traintraintrain.py"
+          tar tzf dist/*.tar.gz | grep -q "/docs/configuration.md"
+          tar tzf dist/*.tar.gz | grep -q "/LICENSE"
       - name: The installed wheel works (not just the source tree)
         run: |
           python -m venv /tmp/wheel-env
@@ -90,3 +97,5 @@ jobs:
           cd /tmp
           /tmp/wheel-env/bin/traintraintrain -c "$GITHUB_WORKSPACE/examples/pipeline/train.yaml" connectors list
           /tmp/wheel-env/bin/traintraintrain -c "$GITHUB_WORKSPACE/examples/train.yaml" plan
+          expected=$(python -c "import tomllib; print(tomllib.load(open('$GITHUB_WORKSPACE/pyproject.toml','rb'))['project']['version'])")
+          test "$(/tmp/wheel-env/bin/traintraintrain --version)" = "traintraintrain $expected"

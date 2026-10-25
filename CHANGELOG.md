@@ -17,7 +17,17 @@ All notable changes to this project are documented here. The format follows
   headers unless `TRAINTRAINTRAIN_TRUST_PROXY_HEADERS=true`, so a client can no longer pick
   the name recorded in the audit trail. **If you run the UI behind an SSO proxy, set this.**
 
+### Changed
+- The package moved to a `src/` layout, and its version comes from `pyproject.toml`
+  alone. Nothing changes for people who install it; contributors need the editable install
+  (`pip install -e ".[dev]"`) before running the tests.
+- The source distribution now includes the tests, docs and examples.
+
 ### Added
+- `traintraintrain --version` (`-V`).
+- A `py.typed` marker, so type checkers use the package's type hints.
+- `traintraintrain.connectors.__all__` lists the plugin API, which is kept stable.
+- The README shows how to install the command with pipx.
 - **Web UI polish:**
   - A stopped departure (braked, timed out) shows one state and one next action
     (*Resume journey*) instead of also asking to clear a signal.

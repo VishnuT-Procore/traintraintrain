@@ -27,6 +27,10 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from pathlib import Path
 
+# The API for connector plugins (docs/connectors.md). Keep these stable across releases.
+__all__ = ["ENTRY_POINT_GROUP", "Connector", "ConnectorError", "Context", "StepResult", "build",
+           "interpolate_env", "register", "render", "types"]
+
 ENTRY_POINT_GROUP = "traintraintrain.connectors"
 
 _ENV_REF = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}")

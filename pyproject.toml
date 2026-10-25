@@ -28,6 +28,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Build Tools",
     "Topic :: System :: Systems Administration",
+    "Typing :: Typed",
 ]
 
 [project.optional-dependencies]
@@ -48,11 +49,11 @@ deploytrain = "traintraintrain.cli:main"  # pre-rename command name
 requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["traintraintrain", "traintraintrain.connectors"]
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.package-data]
-traintraintrain = ["ui/*.html"]
+traintraintrain = ["ui/*.html", "py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
