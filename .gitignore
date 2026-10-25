@@ -1,8 +1,28 @@
+# Python
 __pycache__/
+*.py[cod]
 *.egg-info/
-.traintraintrain/
-.pytest_cache/
+.venv/
+venv/
 dist/
 build/
-.venv/
+
+# Tests and tooling
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
 junit.xml
+.ruff_cache/
+.mypy_cache/
+
+# Local state and secrets
+.traintraintrain/
+.deploytrain/
+.env
+.env.*
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
