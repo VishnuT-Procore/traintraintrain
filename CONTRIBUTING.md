@@ -21,6 +21,10 @@ pip install -e ".[dev]"
 python -m pytest
 ```
 
+The package lives in `src/`, so it must be installed (the editable install above) before
+the tests can import it. That way the tests run against the package as users get it,
+not loose files in the checkout.
+
 Supported Python versions: 3.10 – 3.13. CI runs the tests on Linux for every version and on macOS.
 
 The container image is built from the `Dockerfile` at the repo root:
@@ -48,17 +52,37 @@ shutdown.
 
 ## Project layout
 
-| Path | What it does |
+```
+src/traintraintrain/     the package (what `pip install` puts on your machine)
+tests/                   pytest suite (shared fakes in tests/test_traintraintrain.py)
+docs/                    user documentation, linked from the README
+examples/                example train.yaml files, Docker and Kubernetes setups
+.github/                 CI, Docker and release workflows; issue and PR templates
+pyproject.toml           package metadata, dependencies, entry points (the version lives here)
+MANIFEST.in              what the source distribution includes besides the package
+Dockerfile               the container image
+```
+
+| Module (in `src/traintraintrain/`) | What it does |
 |---|---|
-| `traintraintrain/timetable.py` | Timetables: service hours, timezones, line closures. Pure logic with no I/O. |
-| `traintraintrain/config.py` | YAML loading and validation: `Stop`, `Platform`, `TrainConfig` |
-| `traintraintrain/train.py` | The train: stops, platforms, dwell and inspection, rollback, signals, brake, state file |
-| `traintraintrain/notify.py` | Slack notifications |
-| `traintraintrain/web.py`, `traintraintrain/ui/index.html` | Web UI: JSON API plus a single-page dashboard with no build step |
-| `traintraintrain/cli.py` | Command-line interface |
-| `traintraintrain/storage.py` | Where state lives: files (default) or Postgres, behind one interface |
-| `traintraintrain/healthcheck.py` | Container `HEALTHCHECK` (probes the UI's `/healthz`) |
-| `traintraintrain/_compat.py` | Pre-rename names (waves, regions, windows, …) still accepted as aliases |
+| `timetable.py` | Timetables: service hours, timezones, line closures. Pure logic with no I/O. |
+| `config.py` | YAML loading and validation: `Stop`, `Platform`, `TrainConfig` |
+| `steps.py`, `checks.py` | Pipeline steps and their `expect` / `stop_if` rules |
+| `train.py` | The train: stops, platforms, dwell and inspection, rollback, signals, brake, state |
+| `live.py` | Live versions per platform, commit lookups, change lists |
+| `shell.py` | Filling placeholders into shell commands safely |
+| `connectors/` | Connector types (http, postgres, prometheus, databricks, jira, driver, command) and the plugin API |
+| `driver.py` | The driver contract: one program of yours that performs every step |
+| `notify.py` | Slack notifications |
+| `web.py`, `ui/` | Web UI: JSON API plus single-page HTML with no build step |
+| `connector_test.py` | Connector checks for `connectors ping/test` and `/test_connection.html` |
+| `cli.py` | Command-line interface |
+| `storage.py` | Where state lives: files (default) or Postgres, behind one interface |
+| `healthcheck.py` | Container `HEALTHCHECK` (probes the UI's `/healthz`) |
+| `_compat.py` | Pre-rename names (waves, regions, windows, …) still accepted as aliases |
+
+The public Python API is the connector plugin API in `traintraintrain.connectors` (see its
+`__all__`). Everything else is internal and may change between releases.
 
 ## Guidelines
 
@@ -99,7 +123,7 @@ One-time setup:
    reviewer for it.
 
 To cut a release:
-1. Bump `version` in `pyproject.toml` and `traintraintrain/__init__.py`. Move the
+1. Bump `version` in `pyproject.toml` (`traintraintrain.__version__` reads it). Move the
    "Unreleased" notes in `CHANGELOG.md` under the new version. Merge to `main`, and wait
    for CI and Docker to pass.
 2. Go to **Actions → Release → Run workflow**, keep the branch on `main`, and enter the

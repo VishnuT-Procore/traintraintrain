@@ -1,0 +1,8 @@
+# What the source distribution (sdist) contains besides the package itself, so it can be
+# built and tested on its own (e.g. by Linux distributions).
+include CHANGELOG.md CODE_OF_CONDUCT.md CONTRIBUTING.md SECURITY.md NOTICE
+graft docs
+graft examples
+graft tests
+prune .github
+global-exclude *.py[cod] .DS_Store

@@ -15,7 +15,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from zoneinfo import ZoneInfo
 
-from . import connector_test, connectors, driver, live
+from . import __version__, connector_test, connectors, driver, live
 from . import config as config_mod
 from ._compat import env
 from .notify import Notifier, SlackNotifier, build_notifier
@@ -520,6 +520,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("-c", "--config", default=env("CONFIG", "train.yaml"),
                    help="config file (default: $TRAINTRAINTRAIN_CONFIG or train.yaml)")
     p.add_argument("-v", "--verbose", action="store_true")
+    p.add_argument("-V", "--version", action="version", version=f"%(prog)s {__version__}")
     sub = p.add_subparsers(dest="cmd", required=True, metavar="COMMAND")
 
     sp = sub.add_parser("timetable", aliases=["plan"],

@@ -13,7 +13,7 @@ ARG PYTHON_VERSION=3.13
 FROM python:${PYTHON_VERSION}-slim AS build
 WORKDIR /src
 COPY pyproject.toml README.md LICENSE NOTICE ./
-COPY traintraintrain ./traintraintrain
+COPY src ./src
 RUN pip wheel --no-cache-dir --no-deps --wheel-dir /wheels .
 
 FROM python:${PYTHON_VERSION}-slim

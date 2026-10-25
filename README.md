@@ -24,10 +24,24 @@ a **timetable** is their service hours, **dwell** is the watch period after a de
 
 ## Install
 
+Python 3.10+ on Linux or macOS. To use the command on your machine, install it with
+[pipx](https://pipx.pypa.io/) (or `uv tool install`), which keeps it in its own
+environment:
+
 ```bash
-pip install traintraintrain                          # Python 3.10+, Linux or macOS
+pipx install traintraintrain                       # add Postgres support: pipx install "traintraintrain[postgres]"
+traintraintrain --version
+```
+
+Or into a project's virtual environment, or as a container:
+
+```bash
+pip install traintraintrain
 docker pull ghcr.io/vishnut-procore/traintraintrain:0.3.0
 ```
+
+To try unreleased changes, install from GitHub:
+`pipx install git+https://github.com/VishnuT-Procore/traintraintrain`.
 
 ## Quick start
 
