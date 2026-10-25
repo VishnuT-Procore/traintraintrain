@@ -15,6 +15,7 @@ from pathlib import Path
 import yaml
 
 from . import connectors as connectors_mod
+from . import shell
 from . import steps as steps_mod
 from ._compat import LEGACY_STATE_DIR, env, pick
 from .driver import ACTIONS as DRIVER_ACTIONS
@@ -69,7 +70,11 @@ class Changes:
     # live is shown as "Not in production yet".
     head: str | None = None
 
-    def render(self, template: str, train: str, version: str, previous_version: str) -> str:
+    def render(self, template: str, train: str, version: str, previous_version: str,
+               shell_quote: bool = False) -> str:
+        """Fill a url or command template; `shell_quote` for the command (see shell.py)."""
+        if shell_quote:
+            version, previous_version = shell.quote(version), shell.quote(previous_version)
         return template.format(train=train, version=version, previous_version=previous_version)
 
 

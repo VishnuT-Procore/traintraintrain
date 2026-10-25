@@ -332,7 +332,9 @@ replies `{"ok": true, "metrics": {...}}`; see [driver-contract.md](driver-contra
 
 Step key: `command`. Exit code 0 means the step ran. If the last line of output is a JSON
 object, it becomes the metrics (or its `"metrics"` key, if it has one). A bare `command:`
-step uses this type.
+step uses this type. Versions and earlier steps' values are shell-quoted in the command
+(see [Configuration](configuration.md)); they're also in the environment as `DT_*`, e.g.
+`$DT_STEPS_CHANGE_KEY`.
 
 ## Checking connectors
 

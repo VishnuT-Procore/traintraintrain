@@ -58,6 +58,14 @@ Commands are templates using `{train} {platform} {stop} {version} {previous_vers
 plus any platform `vars`. The same values are exported as env vars (`DT_PLATFORM`,
 `DT_STOP`, `DT_CLUSTER`, …). Escape literal braces as `{{ }}`.
 
+Commands run in a shell, so values that can come from outside `train.yaml` are
+shell-quoted when they're filled in: `{version}`, `{previous_version}`, `{sha}`,
+`{previous_sha}` and step results such as `{steps.change.key}`. A value made only of
+letters, digits and `@%+=:,./-_` (most versions) is left as it is, and an empty value stays
+empty. Don't put quotes around these placeholders yourself. `{train}`, `{platform}`,
+`{stop}` and platform `vars` are written in the config, so they go in as written; a var
+can hold several arguments, e.g. `flags: "--wait --atomic"`.
+
 ## Signals
 
 A stop with `signal: true` stops the train before deploying. The train's status becomes

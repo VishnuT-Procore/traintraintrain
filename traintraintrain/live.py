@@ -23,7 +23,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 
-from . import driver
+from . import driver, shell
 from .config import Platform, TrainConfig
 from .storage import Backend, live_record  # noqa: F401 - re-exported for the train
 
@@ -81,7 +81,7 @@ class ShaResolver:
                 return version.lower(), None
             return None, f"{version!r} isn't a commit SHA; set resolve_command to look tags up"
         try:
-            command = cfg.resolve_command.format(version=version, train=cfg.name)
+            command = cfg.resolve_command.format(version=shell.quote(version), train=cfg.name)
             res = self.runner(command, {"DT_TRAIN": cfg.name, "DT_VERSION": version},
                               cfg.resolve_timeout.total_seconds())
         except Exception as e:  # noqa: BLE001 - informational; never stops a deploy
@@ -170,7 +170,7 @@ def probe(cfg: TrainConfig, platform: Platform, runner) -> tuple[str | None, str
         return None, None, None
     variables = platform_vars(cfg, platform, "", "")
     try:
-        command = cfg.live_version_command.format_map(variables)
+        command = cfg.live_version_command.format_map(shell.quote_values(variables, platform.vars))
         res = runner(command, {f"DT_{k.upper()}": v for k, v in variables.items()},
                      cfg.live_version_timeout.total_seconds())
     except Exception as e:  # noqa: BLE001 - a probe failing must not stop anything
@@ -262,7 +262,7 @@ def collect_changes(cfg: TrainConfig, version: str, bases: dict[str, str | None]
                 _driver_changes(cfg, g, version, sha, base, base_sha, members[key],
                                 ch.timeout if ch else CHANGES_TIMEOUT)
             elif ch.command:
-                command = ch.render(ch.command, cfg.name, to, frm)
+                command = ch.render(ch.command, cfg.name, to, frm, shell_quote=True)
                 g["command"] = command
                 env = {"DT_TRAIN": cfg.name, "DT_VERSION": to, "DT_PREVIOUS_VERSION": frm,
                        "DT_VERSION_NAME": version, "DT_PREVIOUS_VERSION_NAME": base,

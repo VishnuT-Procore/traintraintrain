@@ -222,3 +222,38 @@ def test_legacy_api_paths(server):
     wait_for(base, "v4", lambda r: r.get("status") == "succeeded")
     assert call(base, "/api/runs")[1][0]["version"] == "v4"
     assert call(base, "/api/plan")[0] == 200
+
+
+def _whoami(base, headers):
+    req = urllib.request.Request(base + "/api/whoami", headers={"Authorization": "Bearer s3cret", **headers})
+    with urllib.request.urlopen(req, timeout=5) as r:
+        return json.loads(r.read())["user"]
+
+
+def test_proxy_user_headers_are_ignored_unless_trusted(server, caplog):
+    base, _ = server
+    # Any client can send these; without a proxy they'd let anyone sign audit entries as anyone.
+    assert _whoami(base, {"X-Forwarded-User": "admin"}) == "anonymous"
+    assert _whoami(base, {"X-Auth-Request-Email": "admin@example.com",
+                          "X-Traintraintrain-User": "bob"}) == "bob"
+    assert "TRAINTRAINTRAIN_TRUST_PROXY_HEADERS" in caplog.text
+    assert call(base, "/api/departures/depart", {"version": "v9", "dry_run": True})[0] == 200
+    code, dep = call(base, "/api/departure?version=v9", user="")
+    assert dep["actions"][0]["user"] == "bob"
+
+
+def test_proxy_user_headers_are_used_when_trusted(tmp_path):
+    from traintraintrain.web import truthy
+    assert truthy("true") and truthy("1") and truthy(" YES ") and not truthy("") and not truthy(None)
+    assert not truthy("false") and not truthy("0")
+    cfg = config.load(write_cfg(tmp_path))
+    app = App(cfg, str(tmp_path / "train.yaml"), token="s3cret", trust_proxy_headers=True)
+    httpd = Server(("127.0.0.1", 0), make_handler(app))
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    try:
+        base = f"http://127.0.0.1:{httpd.server_address[1]}"
+        assert _whoami(base, {"X-Forwarded-User": "alice", "X-Traintraintrain-User": "mallory"}) == "alice"
+        assert _whoami(base, {"X-Auth-Request-Email": "alice@example.com"}) == "alice@example.com"
+        assert _whoami(base, {"X-Traintraintrain-User": "bob"}) == "bob"
+    finally:
+        httpd.shutdown()

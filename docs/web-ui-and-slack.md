@@ -36,9 +36,12 @@ traintraintrain -c train.yaml ui --host 127.0.0.1 --port 8080
 
 **Access and auth**
 - By default the UI listens only on localhost.
-- **Shared deployments:** put the UI behind your SSO proxy (oauth2-proxy, IAP, etc.).
-  The user name is taken from `X-Forwarded-User` / `X-Auth-Request-User` (or the
-  matching `...-Email` headers) and recorded on every action.
+- **Shared deployments:** put the UI behind your SSO proxy (oauth2-proxy, IAP, etc.)
+  and set `TRAINTRAINTRAIN_TRUST_PROXY_HEADERS=true`. The user name is then taken from
+  `X-Forwarded-User` / `X-Auth-Request-User` (or the matching `...-Email` headers) and
+  recorded on every action. Without that setting these headers are ignored, because any
+  client can send them. Only turn it on when the proxy is the only way to reach the UI
+  and it overwrites these headers on every request.
 - **Shared token:** alternatively, set `TRAINTRAINTRAIN_UI_TOKEN` to require a token. Users
   then enter a name in the header, which is self-reported.
 - Every POST must send `X-Requested-With: traintraintrain` (CSRF protection).

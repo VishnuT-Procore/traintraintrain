@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Protocol
 from zoneinfo import ZoneInfo
 
-from . import checks, connectors, driver, live
+from . import checks, connectors, driver, live, shell
 from ._compat import LEGACY_STATUS
 from .config import Platform, Stop, TrainConfig
 from .notify import Notifier, build_notifier
@@ -435,7 +435,8 @@ class Train:
         if not template and self.cfg.handles(action):
             return self._run_driver(kind, action, platform, timeout)
         variables = self._vars(platform)
-        command = self._with_step_values(template, platform).format_map(variables)
+        command = self._with_step_values(template, platform).format_map(
+            shell.quote_values(variables, platform.vars))
         env = {f"DT_{k.upper()}": v for k, v in variables.items()}
         if self.dry_run:
             self.state.event(self.clock.now(), f"[dry-run] {kind}: {command}", platform.name)
@@ -448,7 +449,10 @@ class Train:
         return result
 
     def _with_step_values(self, template: str, platform: Platform) -> str:
-        """Fill {steps.<step>.<metric>} (from earlier steps, train.before included) in a command."""
+        """Fill {steps.<step>.<metric>} (from earlier steps, train.before included) in a command.
+
+        Step values come from APIs and command output, so each is shell-quoted.
+        """
         metrics = self._platform_metrics.get(platform.name, self._departure_metrics)
 
         def sub(m):
@@ -456,7 +460,7 @@ class Train:
             if value is None:
                 log.warning("[%s] %s: no such step value yet; using an empty string", platform.name, m.group(0))
                 value = ""
-            return str(value).replace("{", "{{").replace("}", "}}")  # it goes through format_map next
+            return shell.quote(str(value)).replace("{", "{{").replace("}", "}}")  # it goes through format_map next
         return _STEP_REF.sub(sub, template)
 
     def _run_driver(self, kind: str, action: str, platform: Platform, timeout: timedelta) -> CommandResult:

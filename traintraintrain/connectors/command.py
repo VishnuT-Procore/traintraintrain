@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 
+from .. import shell
 from ..timetable import parse_duration
 from . import Connector, ConnectorError, StepResult, render
 
@@ -48,8 +49,9 @@ class CommandConnector(Connector):
     def call(self, step, ctx, timeout):
         if ctx.runner is None:
             return StepResult(False, {}, "no command runner available")
-        command = render(step["command"], ctx)
-        env = {f"DT_{k.upper().replace('.', '_').replace('-', '_')}": v for k, v in ctx.values().items()}
+        values = ctx.values()
+        command = render(step["command"], ctx, values=shell.quote_values(values, ctx.vars))
+        env = {f"DT_{k.upper().replace('.', '_').replace('-', '_')}": v for k, v in values.items()}
         limit = min(timeout, parse_duration(self.settings.get("timeout", "10m")))
         res = ctx.runner(command, env, limit.total_seconds())
         metrics = last_json(res.output) or {}

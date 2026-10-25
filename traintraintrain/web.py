@@ -36,6 +36,8 @@ log = logging.getLogger("traintraintrain")
 
 STATIC_DIR = Path(__file__).parent / "ui"
 VERSION_RE = live.VERSION_RE  # letters, digits and . _ + - / (for monorepo tags like api/v1.2.0)
+# Set by an authenticating proxy (oauth2-proxy, IAP, ...). Any client can send them, so
+# they're only believed when TRAINTRAINTRAIN_TRUST_PROXY_HEADERS says a proxy sets them.
 USER_HEADERS = ("X-Forwarded-User", "X-Auth-Request-User", "X-Forwarded-Email",
                 "X-Auth-Request-Email")
 LOG_TAIL_LINES = 300
@@ -69,10 +71,13 @@ def _iso(dt: datetime | None) -> str | None:
 
 
 class App:
-    def __init__(self, cfg: TrainConfig, config_path: str, token: str | None = None):
+    def __init__(self, cfg: TrainConfig, config_path: str, token: str | None = None,
+                 trust_proxy_headers: bool = False):
         self.cfg = cfg
         self.config_path = str(Path(config_path).resolve())
         self.token = token
+        self.trust_proxy_headers = trust_proxy_headers
+        self._warned_untrusted = False
         self._children: list[tuple[subprocess.Popen, str]] = []
         self._lock = threading.Lock()
         self.backend = backend_for(cfg)
@@ -406,9 +411,13 @@ def make_handler(app: App):
             self._send(status, json.dumps(data).encode(), "application/json")
 
         def _user(self) -> str:
-            for h in USER_HEADERS:  # set by an authenticating proxy (oauth2-proxy, IAP, ...)
-                if self.headers.get(h):
-                    return self.headers[h]
+            proxied = next((self.headers[h] for h in USER_HEADERS if self.headers.get(h)), None)
+            if proxied and app.trust_proxy_headers:
+                return proxied
+            if proxied and not app._warned_untrusted:
+                app._warned_untrusted = True
+                log.warning("ignoring %s: set TRAINTRAINTRAIN_TRUST_PROXY_HEADERS=true if an authenticating "
+                            "proxy sets it", "/".join(h for h in USER_HEADERS if self.headers.get(h)))
             name = (self.headers.get("X-Traintraintrain-User")
                     or self.headers.get("X-Deploytrain-User") or "").strip()
             return name[:64] if name else "anonymous"
@@ -498,12 +507,16 @@ def make_handler(app: App):
     return Handler
 
 
+def truthy(value: str | None) -> bool:
+    return (value or "").strip().lower() in ("1", "true", "yes", "on")
+
+
 def serve(cfg: TrainConfig, config_path: str, host: str = "127.0.0.1", port: int = 8080) -> None:
     token = env("UI_TOKEN")
     if host not in ("127.0.0.1", "localhost", "::1") and not token:
         log.warning("UI is listening on %s without TRAINTRAINTRAIN_UI_TOKEN; anyone who can reach it "
                     "can dispatch trains and pull the brake. Put it behind an auth proxy or set a token.", host)
-    app = App(cfg, config_path, token)
+    app = App(cfg, config_path, token, trust_proxy_headers=truthy(env("TRUST_PROXY_HEADERS")))
     httpd = Server((host, port), make_handler(app))
     log.info("traintraintrain UI for %r on http://%s:%d", cfg.name, host, port)
 

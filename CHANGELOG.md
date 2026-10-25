@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Security
+- Versions, SHAs and step results are now shell-quoted when they're filled into deploy,
+  inspection, rollback, `command` step, `live_version_command`, `resolve_command` and
+  `changes.command` templates. Before, a value read from an API by an earlier step (e.g. a
+  Jira field) or a version given on the command line could run as shell code. Values made
+  of letters, digits and `@%+=:,./-_` are unchanged. If you put quotes around one of these
+  placeholders in a template, remove them. Platform `vars` are not quoted.
+- The web UI ignores `X-Forwarded-User`, `X-Auth-Request-User` and the matching `...-Email`
+  headers unless `TRAINTRAINTRAIN_TRUST_PROXY_HEADERS=true`, so a client can no longer pick
+  the name recorded in the audit trail. **If you run the UI behind an SSO proxy, set this.**
+
 ### Added
 - **Web UI polish:**
   - A stopped departure (braked, timed out) shows one state and one next action
